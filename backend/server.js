@@ -14,44 +14,50 @@ mongoose.connect(process.env.MONGODB_URI, {
   .then(() => console.log('✅ Connected to MongoDB Atlas successfully!'))
   .catch(err => console.error('❌ Database connection error:', err));
 
-// 2. Define the Restaurant Schema (Blueprint for MongoDB)
-const RestaurantSchema = new mongoose.Schema({
+// 2. Define the Products Schema (Updated to match your new UI)
+const ProductsSchema = new mongoose.Schema({
   name: String,
-  tags: String,
+  shop: String,
+  time: String,
   rating: String,
   reviews: String,
-  delivery: String,
-  promos: [String],
-  image: String
+  deliveryNote: String,
+  price: String,
+  image: String,
+  isFavorite: { type: Boolean, default: false }
 });
 
-// Create the model and explicitly link it to the 'Restaurants' collection
-const Restaurant = mongoose.model('Restaurant', RestaurantSchema, 'Restaurants');
+// Create the model (We are linking it to your existing 'Restaurants' collection in Atlas)
+const Products = mongoose.model('Products', ProductsSchema, 'products');
 
 // 3. The API Route your frontend is looking for!
-app.get('/api/restaurants', async (req, res) => {
+app.get('/api/products', async (req, res) => {
   try {
-    const restaurants = await Restaurant.find(); 
+    // FIX: Using the 'Products' model we defined above
+    const productsList = await Products.find(); 
     
     // If the database is empty, let's send a fallback so the app doesn't show an error
-    if (restaurants.length === 0) {
+    if (productsList.length === 0) {
       return res.json([
         {
           _id: 'fallback1',
-          name: 'KFC Banani 11 (Fallback)',
-          tags: '15-20 min • $$$ • Fried',
-          rating: '5.0',
-          reviews: '(32)',
-          delivery: 'Free',
-          promos: ['40% off $10 Hot offer'],
-          image: 'https://images.unsplash.com/photo-1513639776629-7b61b0ac49cb?auto=format&fit=crop&w=800&q=80'
+          name: 'Fresh Coconut (Fallback)',
+          shop: 'Kerala Farms',
+          time: '25 min',
+          rating: '4.9',
+          reviews: '120+',
+          deliveryNote: '$0 Delivery fee',
+          price: '$4.99',
+          image: 'https://images.unsplash.com/photo-1526653054275-4a4f37eb1d7f?auto=format&fit=crop&w=400&q=80',
+          isFavorite: false
         }
       ]);
     }
-    res.json(restaurants);
+    
+    res.json(productsList);
   } catch (error) {
     console.error("Route Error:", error);
-    res.status(500).json({ error: 'Failed to fetch restaurants' });
+    res.status(500).json({ error: 'Failed to fetch products' });
   }
 });
 

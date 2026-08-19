@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; // <-- IMPORTED HOOKS
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -7,251 +7,448 @@ import {
   ScrollView, 
   TouchableOpacity, 
   Image,
-  Platform,
   StatusBar,
-  ActivityIndicator // <-- IMPORTED LOADER
+  Dimensions,
+  ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { Ionicons, Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
-// --- NEW COLOR THEME ---
-const THEME_COLOR = '#F62440'; 
-const BG_COLOR = '#FFFAF3';    
-const HIGHLIGHT_LIGHT = '#FFF2DB'; 
-const HIGHLIGHT_MED = '#FFE5BF';   
+const { width } = Dimensions.get('window');
+const CATEGORY_ITEM_WIDTH = (width - 30) / 4; 
 
-// Mock Data for Categories (We keep this mock data for UI structure)
-const ICON_CATEGORIES = [
-  { id: '1', name: 'Offers', icon: 'brightness-percent', type: 'material' },
-  { id: '2', name: 'New', icon: 'restaurant-outline', type: 'ionicon' },
-  { id: '3', name: 'Pick up', icon: 'shopping-outline', type: 'material' },
-  { id: '4', name: 'Vouchers', icon: 'ticket-percent-outline', type: 'material' },
-];
+// --- THEME COLORS ---
+const COLORS = {
+  primary: '#22C55E',      
+  backgroundEnd: '#FDFDFD',   
+  surface: '#F8FAFC',      
+  textDark: '#111827',     
+  textMuted: '#6B7280',    
+  cardBg: '#FFFFFF',
+  badgeBg: '#FFFFFF',
+  heartIcon: '#F3705A',    
+  heartBg: '#FFF0ED',      
+  starGold: '#FFC107',
+  deliveryPromo: '#E3825E', 
+  priceBg: '#000000',      
+  catActiveBg: '#FF5722',   
+  catInactiveBg: '#111827', 
+};
 
-const FOOD_CATEGORIES = [
-  { id: '1', name: 'Biriyani', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQXyfFBu0oxFPvZ2YDSpBrMov7w-VPlUgp6IkTl3Ux9rg&s=10' },
-  { id: '2', name: 'Burgers', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=150&q=80' },
-  { id: '3', name: 'Chicken', image: 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&w=150&q=80' },
-  { id: '4', name: 'Fried Rice', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRvp9Ftc2REe6QuXV6sl7Bk2rk9SrwJMXmCgO_QMwJa4A&s=10' },
-  { id: '5', name: 'Sadhya', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTYdvwpPD4_xsbtUy3ZlOWm3v9uRlC8jvdHtGWTyVym7ZHFXi8uuMBzLK5b&s=10' },
+// --- STATIC CATEGORIES ---
+const CATEGORIES = [
+  { id: '1', name: 'Veg', icon: '🥬' },
+  { id: '2', name: 'Dairy', icon: '🥛' },
+  { id: '3', name: 'Fruits', icon: '🍎' },
+  { id: '4', name: 'Coconuts', icon: '🥥' },
+  { id: '5', name: 'Spices', icon: '🌶️' },
+  { id: '6', name: 'Bread', icon: '🍞' },
+  { id: '7', name: 'Drinks', icon: '🧃' },
+  { id: '8', name: 'More', icon: '📦' },
 ];
 
 export default function HomeScreen() {
-  const navigation = useNavigation();
+  const [activeCategory, setActiveCategory] = useState('1');
   
-  // --- NEW: STATE FOR BACKEND DATA ---
-  const [restaurants, setRestaurants] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // NEW: State for backend data
+  const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // NEW: Fetch data from MongoDB via Node.js
   useEffect(() => {
-    // If you eventually host this live, it will look like 'https://your-api.onrender.com/api/restaurants'
-    const API_URL = 'http://192.168.0.102:5000/api/restaurants'; 
+    const API_URL = 'http://192.168.0.102:5000/api/products'; 
 
-    const fetchRestaurants = async () => {
-      try {
-        const response = await fetch(API_URL);
-        if (!response.ok) throw new Error('Network response was not ok');
-        const data = await response.json();
-        setRestaurants(data);
-      } catch (err) {
-        console.error("Fetch Error:", err);
-        setError("Failed to load restaurants.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRestaurants();
+    fetch(API_URL)
+      .then((response) => response.json())
+      .then((data) => {
+        setProducts(data);
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching data: ", error);
+        setIsLoading(false);
+      });
   }, []);
 
-  const renderIcon = (item) => {
-    if (item.type === 'material') {
-      return <MaterialCommunityIcons name={item.icon} size={24} color={THEME_COLOR} />;
-    }
-    return <Ionicons name={item.icon} size={24} color={THEME_COLOR} />;
-  };
-
   return (
-    <View style={styles.root}>
-      {/* Static Colored Header Background */}
-      <View style={styles.headerBackground}>
-        <SafeAreaView>
-          <View style={styles.headerContent}>
-            
-            {/* Location Row */}
-            <View style={styles.locationRow}>
-              <View>
-                <Text style={styles.locationCity}>Dhaka</Text>
-                <Text style={styles.locationArea}>Dhaka</Text>
-              </View>
-              <View style={styles.headerIcons}>
-                <TouchableOpacity style={styles.iconBtn}>
-                  <Ionicons name="heart-outline" size={24} color="#FFF" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.iconBtn}>
-                  <Ionicons name="notifications-outline" size={24} color="#FFF" />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Search Bar */}
-            <View style={styles.searchContainer}>
-              <Feather name="search" size={20} color="#666" style={styles.searchIcon} />
-              <TextInput 
-                style={styles.searchInput}
-                placeholder="Search for restaurants and groceries"
-                placeholderTextColor="#888"
-              />
-            </View>
-
-            {/* Promo Banner Area */}
-            <View style={styles.promoContainer}>
-              <View style={styles.promoTextContainer}>
-                <Text style={styles.promoSub}>First order?</Text>
-                <Text style={styles.promoTitle}>Here's 40% off &{'\n'}free delivery!</Text>
-              </View>
-              <View style={styles.giftIconContainer}>
-                <Ionicons name="gift" size={44} color={THEME_COLOR} />
-              </View>
-            </View>
-
-          </View>
-        </SafeAreaView>
-      </View>
-
-      {/* Overlapping Body with Cream Background */}
-      <View style={styles.bodyContainer}>
+    <LinearGradient 
+      colors={['#E6F9EC', COLORS.backgroundEnd]} 
+      style={styles.container}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" backgroundColor="#E6F9EC" />
+        
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           
-          {/* Icon Categories Row */}
-          <View style={styles.iconCategoryRow}>
-            {ICON_CATEGORIES.map((item) => (
-              <TouchableOpacity key={item.id} style={styles.iconCategoryItem}>
-                <View style={styles.iconWrapper}>
-                  {renderIcon(item)}
-                </View>
-                <Text style={styles.iconCategoryText}>{item.name}</Text>
+          {/* Header */}
+          <View style={styles.headerRow}>
+            <View style={styles.headerLeft}>
+              <Image 
+                source={{ uri: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80' }} 
+                style={styles.profilePic} 
+              />
+              <View style={styles.addressContainer}>
+                <Text style={styles.deliverToText}>Deliver to</Text>
+                <TouchableOpacity style={styles.addressSelector}>
+                  <Text style={styles.addressText}>Times Square</Text>
+                  <Ionicons name="caret-down" size={14} color={COLORS.primary} style={{ marginLeft: 4 }} />
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            <View style={styles.headerIcons}>
+              <TouchableOpacity style={styles.iconCircle}>
+                <Feather name="bell" size={20} color={COLORS.textDark} />
+                <View style={styles.notificationDot} />
               </TouchableOpacity>
-            ))}
+              <TouchableOpacity style={styles.iconCircle}>
+                <Feather name="shopping-bag" size={20} color={COLORS.textDark} />
+                <View style={styles.notificationDot} />
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {/* Food Thumbnail Categories Row */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.foodCategoryScroll}>
-            {FOOD_CATEGORIES.map((item) => (
-              <TouchableOpacity key={item.id} style={styles.foodCategoryItem}>
-                <Image source={{ uri: item.image }} style={styles.foodCategoryImg} />
-                <Text style={styles.foodCategoryText}>{item.name}</Text>
-              </TouchableOpacity>
-            ))}
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
+            <Feather name="search" size={20} color={COLORS.textMuted} style={styles.searchIcon} />
+            <TextInput 
+              style={styles.searchInput}
+              placeholder="What are you craving?"
+              placeholderTextColor={COLORS.textMuted}
+            />
+          </View>
+
+          {/* Top Dark Banner Section */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Special Offers</Text>
+            <TouchableOpacity>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity style={styles.bannerContainer}>
+            <LinearGradient
+              colors={['#1F2937', '#0F172A']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.darkBannerGradient}
+            >
+              <View style={styles.darkBannerLeft}>
+                <Text style={styles.uptoText}>EXCLUSIVE</Text>
+                <View style={styles.discountRow}>
+                  <Text style={styles.discountValue}>30%</Text>
+                  <Text style={styles.discountOff}> OFF</Text>
+                </View>
+                <Text style={styles.promoDesc}>Valid only for today!</Text>
+                <TouchableOpacity style={styles.orderNowBtn}>
+                  <Text style={styles.orderNowText}>Order Now</Text>
+                </TouchableOpacity>
+              </View>
+              
+              <View style={styles.darkBannerRight}>
+                <Image 
+                  source={{ uri: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=400&q=80' }} 
+                  style={styles.darkBannerImage} 
+                />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {/* EXACT 4-ITEM CATEGORY SCROLL */}
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            style={styles.categoryScroll}
+            pagingEnabled={true}
+            decelerationRate="fast"
+            snapToAlignment="start"
+          >
+            {CATEGORIES.map((cat) => {
+              const isActive = activeCategory === cat.id;
+              
+              return (
+                <TouchableOpacity 
+                  key={cat.id} 
+                  style={styles.categoryItem}
+                  onPress={() => setActiveCategory(cat.id)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[
+                    styles.categorySquircle,
+                    { backgroundColor: isActive ? COLORS.catActiveBg : COLORS.catInactiveBg }
+                  ]}>
+                    <Text style={styles.categoryEmoji}>{cat.icon}</Text>
+                  </View>
+                  <Text style={[
+                    styles.categoryName,
+                    { color: isActive ? COLORS.catActiveBg : COLORS.textDark }
+                  ]}>
+                    {cat.name}
+                  </Text>
+                </TouchableOpacity>
+              )
+            })}
           </ScrollView>
 
-          {/* Explore Restaurants (DYNAMIC DATA) */}
-          <View style={styles.exploreSection}>
-            <Text style={styles.exploreTitle}>Explore restaurants</Text>
-            
-            {loading ? (
-              <ActivityIndicator size="large" color={THEME_COLOR} style={{ marginTop: 20 }} />
-            ) : error ? (
-              <Text style={styles.errorText}>{error}</Text>
-            ) : restaurants.length === 0 ? (
-              <Text style={styles.errorText}>No restaurants found.</Text>
-            ) : (
-              restaurants.map((restaurant) => (
-                <TouchableOpacity 
-                  key={restaurant._id || restaurant.id} // Supports MongoDB _id
-                  style={styles.restaurantCard}
-                  onPress={() => navigation.navigate('Restaurant', { restaurantId: restaurant._id || restaurant.id })} 
-                >
-                  
-                  <Image source={{ uri: restaurant.image }} style={styles.restaurantImage} />
-                  <TouchableOpacity style={styles.favoriteBtn}>
-                    <Ionicons name="heart-outline" size={20} color="#FFF" />
-                  </TouchableOpacity>
-
-                  <View style={styles.restaurantInfo}>
-                    <View style={styles.restaurantHeader}>
-                      <Text style={styles.restaurantName}>{restaurant.name}</Text>
-                      <View style={styles.ratingRow}>
-                        <Ionicons name="star" size={12} color={THEME_COLOR} />
-                        <Text style={styles.ratingText}>{restaurant.rating} <Text style={styles.reviewText}>{restaurant.reviews || ''}</Text></Text>
-                      </View>
-                    </View>
-                    
-                    <Text style={styles.restaurantTags}>{restaurant.tags}</Text>
-                    
-                    <View style={styles.deliveryRow}>
-                      <MaterialCommunityIcons name="bike" size={16} color={THEME_COLOR} />
-                      <Text style={styles.deliveryText}>{restaurant.delivery}</Text>
-                    </View>
-
-                    {/* Promo Tags - Only map if promos exist in DB */}
-                    {restaurant.promos && restaurant.promos.length > 0 && (
-                      <View style={styles.promoTagsRow}>
-                        {restaurant.promos.map((promo, index) => (
-                          <View key={index} style={styles.promoTag}>
-                            <MaterialCommunityIcons name="brightness-percent" size={12} color={THEME_COLOR} />
-                            <Text style={styles.promoTagText}>{promo}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ))
-            )}
+          {/* 2-Column Recommended Grid (Dynamically Fetched) */}
+          <View style={[styles.sectionHeader, { marginTop: 10 }]}>
+            <Text style={[styles.sectionTitle, { fontSize: 20 }]}>Recommended for you</Text>
           </View>
 
+          {isLoading ? (
+            <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 20 }} />
+          ) : (
+            <View style={styles.recommendedGrid}>
+              {products.map((item) => (
+                <TouchableOpacity key={item._id} style={styles.gridCard}>
+                  
+                  <View style={styles.imageContainer}>
+                    {/* Maps to your MongoDB 'image' field */}
+                    <Image source={{ uri: item.image }} style={styles.gridImage} />
+                    
+                    <TouchableOpacity style={styles.heartBadge}>
+                      <Ionicons name="heart-outline" size={16} color={COLORS.textMuted} />
+                    </TouchableOpacity>
+
+                    <View style={styles.timeBadge}>
+                      <Feather name="clock" size={10} color={COLORS.textDark} style={{ marginRight: 4 }} />
+                      <Text style={styles.timeText}>15 min</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.cardFooter}>
+                    
+                    {/* Maps to your MongoDB 'name' field */}
+                    <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+                    
+                    <View style={styles.shopRatingRow}>
+                      <View style={styles.shopInfo}>
+                        <Ionicons name="storefront-outline" size={12} color={COLORS.heartIcon} style={{ marginRight: 2 }} />
+                        {/* Assuming tags hold the shop name or details for now */}
+                        <Text style={styles.shopName} numberOfLines={1}>{item.tags || "Local Market"}</Text>
+                      </View>
+                      <View style={styles.ratingInfo}>
+                        {/* Maps to your MongoDB 'rating' field */}
+                        <Text style={styles.ratingScore}>{item.rating || "4.5"}</Text>
+                        <Ionicons name="star" size={10} color={COLORS.starGold} style={{ marginHorizontal: 2 }} />
+                      </View>
+                    </View>
+
+                    <View style={styles.deliveryPriceRow}>
+                      <View style={styles.pricePill}>
+                        {/* If price isn't in your schema yet, add it to MongoDB or use a default */}
+                        <Text style={styles.priceText}>{item.price || "$4.99"}</Text>
+                      </View>
+                    </View>
+
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
         </ScrollView>
+      </SafeAreaView>
+
+      {/* Bottom Navigation */}
+      <View style={styles.bottomNav}>
+        <TouchableOpacity style={styles.navItem}>
+          <Ionicons name="home" size={24} color={COLORS.primary} />
+          <Text style={[styles.navText, { color: COLORS.primary }]}>Home</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem}>
+          <Feather name="file-text" size={24} color={COLORS.textMuted} />
+          <Text style={styles.navText}>Orders</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem}>
+          <Feather name="message-circle" size={24} color={COLORS.textMuted} />
+          <Text style={styles.navText}>Offers</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem}>
+          <Feather name="user" size={24} color={COLORS.textMuted} />
+          <Text style={styles.navText}>Profile</Text>
+        </TouchableOpacity>
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: THEME_COLOR },
-  headerBackground: { backgroundColor: THEME_COLOR, paddingBottom: 40 },
-  headerContent: { paddingHorizontal: 20 },
-  locationRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  locationCity: { fontSize: 16, fontWeight: 'bold', color: '#FFF' },
-  locationArea: { fontSize: 12, color: 'rgba(255,255,255,0.8)' },
-  headerIcons: { flexDirection: 'row', gap: 15 },
-  iconBtn: { padding: 4 },
-  searchContainer: { flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 25, paddingHorizontal: 15, paddingVertical: 12, alignItems: 'center', marginBottom: 25 },
+  container: { flex: 1 },
+  safeArea: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 20 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, marginBottom: 25 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  profilePic: { width: 44, height: 44, borderRadius: 22, marginRight: 12 },
+  addressContainer: { justifyContent: 'center' },
+  deliverToText: { fontSize: 12, color: COLORS.textMuted, marginBottom: 2 },
+  addressSelector: { flexDirection: 'row', alignItems: 'center' },
+  addressText: { fontSize: 16, fontWeight: '700', color: COLORS.textDark },
+  headerIcons: { flexDirection: 'row', gap: 12 },
+  iconCircle: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center' },
+  notificationDot: { position: 'absolute', top: 10, right: 12, width: 6, height: 6, borderRadius: 3, backgroundColor: '#EF4444' },
+  searchContainer: { flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, alignItems: 'center', marginBottom: 30, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 2 },
   searchIcon: { marginRight: 10 },
-  searchInput: { flex: 1, fontSize: 14, color: '#333' },
-  promoContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  promoTextContainer: { flex: 1 },
-  promoSub: { fontSize: 14, color: '#FFF', marginBottom: 4 },
-  promoTitle: { fontSize: 22, fontWeight: '800', color: '#FFF', lineHeight: 28 },
-  giftIconContainer: { width: 70, height: 70, backgroundColor: HIGHLIGHT_LIGHT, borderRadius: 35, justifyContent: 'center', alignItems: 'center' },
-  bodyContainer: { flex: 1, backgroundColor: BG_COLOR, borderTopLeftRadius: 30, borderTopRightRadius: 30, marginTop: -30, overflow: 'hidden' },
-  scrollContent: { paddingTop: 30, paddingBottom: 40 },
-  iconCategoryRow: { flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 10, marginBottom: 25 },
-  iconCategoryItem: { alignItems: 'center' },
-  iconWrapper: { width: 50, height: 50, backgroundColor: HIGHLIGHT_LIGHT, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  iconCategoryText: { fontSize: 12, fontWeight: '600', color: '#333' },
-  foodCategoryScroll: { paddingLeft: 20, marginBottom: 30 },
-  foodCategoryItem: { alignItems: 'center', marginRight: 20 },
-  foodCategoryImg: { width: 60, height: 60, borderRadius: 12, marginBottom: 8 },
-  foodCategoryText: { fontSize: 12, color: '#555', fontWeight: '500' },
-  exploreSection: { paddingHorizontal: 20 },
-  exploreTitle: { fontSize: 18, fontWeight: 'bold', color: '#222', marginBottom: 15 },
-  errorText: { textAlign: 'center', color: '#888', marginTop: 20 },
-  restaurantCard: { backgroundColor: '#FFF', borderRadius: 16, overflow: 'hidden', marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
-  restaurantImage: { width: '100%', height: 160 },
-  favoriteBtn: { position: 'absolute', top: 15, right: 15, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 20, padding: 6 },
-  restaurantInfo: { padding: 15 },
-  restaurantHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  restaurantName: { fontSize: 16, fontWeight: 'bold', color: '#222' },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  ratingText: { fontSize: 12, fontWeight: 'bold', color: '#333' },
-  reviewText: { color: '#888', fontWeight: 'normal' },
-  restaurantTags: { fontSize: 12, color: '#666', marginBottom: 10 },
-  deliveryRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
-  deliveryText: { fontSize: 12, color: THEME_COLOR, fontWeight: '600' },
-  promoTagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  promoTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: HIGHLIGHT_MED, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, gap: 4 },
-  promoTagText: { fontSize: 10, color: THEME_COLOR, fontWeight: '700' },
+  searchInput: { flex: 1, fontSize: 14, color: COLORS.textDark },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.textDark },
+  seeAllText: { fontSize: 14, fontWeight: '700', color: COLORS.primary },
+  
+  // Dark Promo Banner
+  bannerContainer: { width: '100%', height: 150, borderRadius: 16, marginBottom: 30, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.15, shadowRadius: 10, elevation: 8 },
+  darkBannerGradient: { flex: 1, flexDirection: 'row', borderRadius: 16, overflow: 'hidden' },
+  darkBannerLeft: { flex: 1, padding: 20, justifyContent: 'center', zIndex: 2 },
+  darkBannerRight: { width: 140, justifyContent: 'center', alignItems: 'center', position: 'relative' },
+  darkBannerImage: { width: 180, height: 180, borderRadius: 90, position: 'absolute', right: -30, borderWidth: 4, borderColor: 'rgba(255,255,255,0.05)' },
+  uptoText: { color: '#94A3B8', fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  discountRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 2, marginBottom: 4 },
+  discountValue: { color: '#EEDAA5', fontSize: 28, fontWeight: '900' },
+  discountOff: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', marginLeft: 4 },
+  promoDesc: { color: '#CBD5E1', fontSize: 11, marginBottom: 12 },
+  orderNowBtn: { backgroundColor: '#FFFFFF', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6, alignSelf: 'flex-start' },
+  orderNowText: { color: '#0F172A', fontSize: 11, fontWeight: 'bold' },
+
+  // CATEGORY SCROLL STYLES
+  categoryScroll: {
+    marginBottom: 30,
+    overflow: 'visible',
+  },
+  categoryItem: {
+    width: CATEGORY_ITEM_WIDTH,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categorySquircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 32, 
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  categoryEmoji: {
+    fontSize: 28, 
+  },
+  categoryName: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  // 2-COLUMN GRID STYLES
+  recommendedGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingBottom: 20,
+  },
+  gridCard: {
+    width: '48%', 
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 20,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 0.5,
+  },
+  imageContainer: {
+    position: 'relative',
+    height: 120, 
+    width: '100%',
+  },
+  gridImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  heartBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: COLORS.heartBg,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  timeBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    backgroundColor: COLORS.badgeBg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  timeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.textDark,
+  },
+  cardFooter: {
+    padding: 12,
+  },
+  itemName: {
+    fontSize: 14, 
+    fontWeight: '800',
+    color: COLORS.textDark,
+    marginBottom: 6,
+  },
+  shopRatingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  shopInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  shopName: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.textDark,
+    marginRight: 4,
+  },
+  ratingInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ratingScore: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.textDark,
+  },
+  deliveryPriceRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end', 
+  },
+  pricePill: {
+    backgroundColor: COLORS.priceBg,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  priceText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+
+  bottomNav: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 12, paddingBottom: 20, borderTopWidth: 1, borderTopColor: '#F1F5F9', backgroundColor: '#FFF' },
+  navItem: { alignItems: 'center' },
+  navText: { fontSize: 10, fontWeight: '600', color: COLORS.textMuted, marginTop: 4 }
 });

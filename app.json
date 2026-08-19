@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "FoodDelivery",
-    "slug": "FoodDelivery",
+    "name": "DeliveryApp",
+    "slug": "DeliveryApp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,7 +16,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.y4yatosteam.FoodDelivery"
+      "package": "com.y4yatosteam.DeliveryApp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
