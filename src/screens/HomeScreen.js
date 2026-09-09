@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useContext } from 'react';
+import { AuthContext } from '../context/AuthContext';
 import { 
   View, 
   Text, 
@@ -30,6 +32,7 @@ const THEME = {
 };
 
 export default function HomeScreen() {
+  const { user } = useContext(AuthContext);
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -70,10 +73,10 @@ export default function HomeScreen() {
                 style={styles.profilePic} 
               />
               <View style={styles.addressContainer}>
-                <Text style={styles.deliverToText}>Deliver to</Text>
+                <Text style={styles.deliverToText}>Welcome back,</Text>
                 <TouchableOpacity style={styles.addressSelector}>
-                  <Text style={styles.addressText}>Kattakada</Text>
-                  <Ionicons name="caret-down" size={14} color={THEME.primary} style={{ marginLeft: 4 }} />
+                  <Text style={styles.addressText}>{user?.user?.name || 'Guest'}</Text>
+                  {/* <Ionicons name="caret-down" size={14} color={THEME.primary} style={{ marginLeft: 4 }} /> */}
                 </TouchableOpacity>
               </View>
             </View>

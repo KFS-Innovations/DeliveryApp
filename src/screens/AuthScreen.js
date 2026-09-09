@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { useContext } from 'react';
+import { AuthContext } from '../context/AuthContext';
 
 // NEW: Local Dark Theme Colors
 const THEME = {
@@ -29,7 +31,7 @@ const THEME = {
 
 export default function AuthScreen({ navigation }) {
   const [isLogin, setIsLogin] = useState(true);
-  
+  const { login } = useContext(AuthContext);
   // Form State
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -80,6 +82,7 @@ export default function AuthScreen({ navigation }) {
       const data = await response.json();
 
       if (response.ok) {
+        await login(data);
         navigation.replace('Home');
       } else {
         Alert.alert('Authentication Failed', data.message || 'Something went wrong');

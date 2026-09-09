@@ -6,11 +6,13 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AuthScreen from './src/screens/AuthScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import ProductDetailsScreen from './src/screens/ProductDetailsScreen';
+import { AuthProvider } from './src/context/AuthContext';
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
   return (
+    <AuthProvider>
       <NavigationContainer>
         <StatusBar style="auto" />
         <Stack.Navigator 
@@ -24,5 +26,6 @@ export default function App() {
           
         </Stack.Navigator>
       </NavigationContainer>
+    </AuthProvider>
   );
 }
