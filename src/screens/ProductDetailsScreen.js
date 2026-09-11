@@ -8,10 +8,12 @@ import {
   ScrollView, 
   ActivityIndicator,
   StatusBar,
-  Dimensions
+  Dimensions,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS } from '../components/theme';
 
 const { width } = Dimensions.get('window');
@@ -21,6 +23,7 @@ export default function ProductDetailsScreen({ route, navigation }) {
   
   const [otherProducts, setOtherProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
@@ -53,6 +56,42 @@ export default function ProductDetailsScreen({ route, navigation }) {
   const currencySymbol = product.price.replace(/[0-9.]/g, '') || '₹';
   const totalPrice = (numericPrice * quantity).toFixed(2);
 
+  const handleAddToCart = async () => {
+    setIsAddingToCart(true);
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+      const API_URL = process.env.EXPO_PUBLIC_IP 
+        ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/cart/add`
+        : 'http://192.168.0.107:5000/api/cart/add';
+
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          productId: product._id,
+          quantity: quantity,
+          
+        })
+      });
+
+      if (response.ok) {
+        // Redirect to Cart Screen on success
+        navigation.navigate('Cart');
+      } else {
+        const errorData = await response.json(); 
+        Alert.alert("Backend Error", errorData.error || "Could not add item.");
+      }
+    } catch (error) {
+      console.error("Fetch Error:", error);
+      Alert.alert("Network Error", "Could not connect to the server.");
+    } finally {
+      setIsAddingToCart(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
@@ -70,7 +109,6 @@ export default function ProductDetailsScreen({ route, navigation }) {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
-        {/* Framed Catalog Image */}
         <View style={styles.imageWrapper}>
           <Image source={{ uri: product.image }} style={styles.productImage} />
         </View>
@@ -165,9 +203,20 @@ export default function ProductDetailsScreen({ route, navigation }) {
           <Text style={styles.totalPrice}>{currencySymbol}{totalPrice}</Text>
         </View>
 
-        <TouchableOpacity style={styles.cartButton}>
-          <Feather name="shopping-bag" size={20} color="#FFF" style={{ marginRight: 8 }} />
-          <Text style={styles.cartButtonText}>Add to Cart</Text>
+        {/* Updated Button */}
+        <TouchableOpacity 
+          style={[styles.cartButton, isAddingToCart && { opacity: 0.8 }]} 
+          onPress={handleAddToCart}
+          disabled={isAddingToCart}
+        >
+          {isAddingToCart ? (
+            <ActivityIndicator size="small" color="#FFF" style={{ marginRight: 8 }} />
+          ) : (
+            <Feather name="shopping-bag" size={20} color="#FFF" style={{ marginRight: 8 }} />
+          )}
+          <Text style={styles.cartButtonText}>
+            {isAddingToCart ? "Adding..." : "Add to Cart"}
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

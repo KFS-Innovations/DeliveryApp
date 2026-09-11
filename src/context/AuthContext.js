@@ -24,11 +24,16 @@ export const AuthProvider = ({ children }) => {
     loadUser();
   }, []);
 
-  // Call this function when the user successfully logs in
-  const login = async (userData) => {
+  const login = async (backendResponse) => {
     try {
-      setUser(userData);
-      await AsyncStorage.setItem('userData', JSON.stringify(userData));
+      // 1. Save the user object to state and local storage
+      setUser(backendResponse.user);
+      await AsyncStorage.setItem('userData', JSON.stringify(backendResponse.user));
+      
+      // 2. THIS IS THE FIX: Explicitly save the token so ProductDetailsScreen can find it!
+      if (backendResponse.token) {
+        await AsyncStorage.setItem('authToken', backendResponse.token);
+      }
     } catch (error) {
       console.error("Failed to save user data", error);
     }
@@ -38,7 +43,9 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       setUser(null);
+      // Remove BOTH keys when logging out
       await AsyncStorage.removeItem('userData');
+      await AsyncStorage.removeItem('authToken');
     } catch (error) {
       console.error("Failed to clear user data", error);
     }

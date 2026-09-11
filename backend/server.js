@@ -10,10 +10,14 @@ app.use(express.json());
 // --- ROUTE IMPORTS ---
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
+const cartRoutes = require('./routes/cart');
+
 
 // --- MOUNT ROUTES ---
+app.use('/api/cart', cartRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/users', require('./routes/users'));
 
 // --- DATABASE CONNECTION ---
 mongoose.connect(process.env.MONGODB_URI, {

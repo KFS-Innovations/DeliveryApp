@@ -31,7 +31,7 @@ const THEME = {
   border: '#E2E8F0',       // Subtle light gray border
 };
 
-export default function HomeScreen() {
+export default function HomeScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -86,7 +86,7 @@ export default function HomeScreen() {
                 <Feather name="bell" size={20} color={THEME.textPrimary} />
                 <View style={styles.notificationDot} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.iconCircle}>
+              <TouchableOpacity style={styles.iconCircle} onPress={() => navigation.navigate('Cart')}>
                 <Feather name="shopping-bag" size={20} color={THEME.textPrimary} />
                 <View style={styles.notificationDot} />
               </TouchableOpacity>
