@@ -10,7 +10,7 @@
     "@react-navigation/native-stack": "^7.18.8",
     "expo": "~57.0.12",
     "expo-linear-gradient": "~57.0.1",
-    "expo-location": "~57.0.16",
+    "expo-location": "~57.0.20",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-native": "0.86.2",
@@ -20,8 +20,8 @@
   },
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web"
   },
   "private": true

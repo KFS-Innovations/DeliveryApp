@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { 
   View, 
@@ -9,36 +8,40 @@ import {
   ScrollView, 
   TouchableOpacity, 
   Image,
-  StatusBar
+  StatusBar,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // <-- Added import
+import * as Location from 'expo-location'; // <-- Added Location import
 
 // Import our isolated components
 import PromoBanner from '../components/PromoBanner';
 import CategoryList from '../components/CategoryList';
 import ProductGrid from '../components/ProductGrid';
 
-// NEW: Consistent Light Theme
 const THEME = {
-  background: '#F8FAFC',   // Soft, clean off-white
-  surface: '#FFFFFF',      // Pure white
-  surfaceActive: '#E2E8F0',// Light slate
-  textPrimary: '#0F172A',  // Deep slate/near-black
-  textMuted: '#64748B',    // Medium gray
-  primary: '#10B981',      // Vibrant Emerald Green
-  border: '#E2E8F0',       // Subtle light gray border
+  background: '#F8FAFC',
+  surface: '#FFFFFF',
+  surfaceActive: '#E2E8F0',
+  textPrimary: '#0F172A',
+  textMuted: '#64748B',
+  primary: '#10B981',
+  border: '#E2E8F0',
 };
 
 export default function HomeScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // NEW: State for the user's readable location
+  const [currentAddress, setCurrentAddress] = useState("Fetching location...");
 
-  // Fetch data from MongoDB via Node.js
+  // 1. Fetch Products
   useEffect(() => {
-    // Using your established IP or falling back to the .env variable
     const API_URL = process.env.EXPO_PUBLIC_IP 
       ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/products`
       : 'http://192.168.0.107:5000/api/products';
@@ -55,11 +58,65 @@ export default function HomeScreen({ navigation }) {
       });
   }, []);
 
+  // 2. Fetch and Save Location
+  useEffect(() => {
+    const fetchAndSaveLocation = async () => {
+      try {
+        // Request Permission
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setCurrentAddress("Location permission denied");
+          return;
+        }
+
+        // Get Coordinates
+        let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        
+        // Convert Coordinates to readable address (City/Region)
+        let geocode = await Location.reverseGeocodeAsync({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude
+        });
+
+        let readableAddress = "Unknown Location";
+        if (geocode.length > 0) {
+          const { city, district, region } = geocode[0];
+          readableAddress = city || district || region || "Current Location";
+          setCurrentAddress(readableAddress);
+        }
+
+        // Send to Backend
+        const token = await AsyncStorage.getItem('authToken');
+        if (!token) return;
+
+        const API_URL = process.env.EXPO_PUBLIC_IP 
+          ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/users/location`
+          : 'http://192.168.0.107:5000/api/users/location';
+
+        await fetch(API_URL, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            address: readableAddress
+          })
+        });
+
+      } catch (error) {
+        console.error("Error handling location:", error);
+        setCurrentAddress("Location unavailable");
+      }
+    };
+
+    fetchAndSaveLocation();
+  }, []);
+
   return (
-    <LinearGradient 
-      colors={[THEME.surface, THEME.background]} 
-      style={styles.container}
-    >
+    <LinearGradient colors={[THEME.surface, THEME.background]} style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="dark-content" backgroundColor={THEME.surface} />
         
@@ -73,10 +130,11 @@ export default function HomeScreen({ navigation }) {
                 style={styles.profilePic} 
               />
               <View style={styles.addressContainer}>
-                <Text style={styles.deliverToText}>Welcome back,</Text>
+                <Text style={styles.deliverToText}>Deliver to {user?.user?.name ? `• ${user.user.name}` : ''}</Text>
                 <TouchableOpacity style={styles.addressSelector}>
-                  <Text style={styles.addressText}>{user?.user?.name || 'Guest'}</Text>
-                  {/* <Ionicons name="caret-down" size={14} color={THEME.primary} style={{ marginLeft: 4 }} /> */}
+                  {/* Updated to show the fetched location */}
+                  <Text style={styles.addressText} numberOfLines={1}>{currentAddress}</Text>
+                  <Ionicons name="caret-down" size={14} color={THEME.primary} style={{ marginLeft: 4 }} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -140,12 +198,12 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: 20, paddingBottom: 20 },
   
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, marginBottom: 25 },
-  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 15 },
   profilePic: { width: 44, height: 44, borderRadius: 22, marginRight: 12 },
-  addressContainer: { justifyContent: 'center' },
+  addressContainer: { justifyContent: 'center', flex: 1 },
   deliverToText: { fontSize: 12, color: THEME.textMuted, marginBottom: 2 },
   addressSelector: { flexDirection: 'row', alignItems: 'center' },
-  addressText: { fontSize: 16, fontWeight: '700', color: THEME.textPrimary },
+  addressText: { fontSize: 16, fontWeight: '700', color: THEME.textPrimary, flexShrink: 1 },
   
   headerIcons: { flexDirection: 'row', gap: 12 },
   iconCircle: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: THEME.border, backgroundColor: THEME.surface, justifyContent: 'center', alignItems: 'center' },
