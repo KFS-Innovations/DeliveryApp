@@ -7,13 +7,14 @@ import {
     ScrollView, 
     ActivityIndicator,
     StatusBar,
-    Alert
+    Alert,
+    Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { WebView } from 'react-native-webview'; 
 
-// Matching your exact app theme
 const THEME = {
     primary: '#10B981',
     textDark: '#1E293B',
@@ -27,9 +28,10 @@ const THEME = {
 export default function CheckoutScreen({ navigation }) {
     const [loading, setLoading] = useState(true);
     const [subtotal, setSubtotal] = useState(0);
-    const [deliveryFee, setDeliveryFee] = useState(40); // Fixed delivery fee (₹40)
-    const [paymentMethod, setPaymentMethod] = useState('cod'); // Default to Cash on Delivery
-    const [address, setAddress] = useState("Fetching your location...");
+    const [deliveryFee, setDeliveryFee] = useState(40);
+    const [paymentMethod, setPaymentMethod] = useState('cod'); 
+    const [address, setAddress] = useState("Trivandrum, Kerala, India");
+    const [paymentUrl, setPaymentUrl] = useState(null);
 
     useEffect(() => {
         fetchCheckoutData();
@@ -38,11 +40,7 @@ export default function CheckoutScreen({ navigation }) {
     const fetchCheckoutData = async () => {
         try {
             const token = await AsyncStorage.getItem('authToken');
-            
-            // 1. Fetch Cart Total (Reusing your existing cart endpoint)
-            const CART_API_URL = process.env.EXPO_PUBLIC_IP 
-                ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/cart`
-                : 'http://192.168.0.107:5000/api/cart';
+            const CART_API_URL = `http://${process.env.EXPO_PUBLIC_IP}:5000/api/cart`;
 
             const cartRes = await fetch(CART_API_URL, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -53,11 +51,6 @@ export default function CheckoutScreen({ navigation }) {
                 const total = cartData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                 setSubtotal(total);
             }
-
-            // 2. Fetch User Address (Optional: Hook this up to your new /api/user endpoint later)
-            // For now, we'll set a placeholder based on our recent location work
-            setAddress("Trivandrum, Kerala, India"); 
-
         } catch (error) {
             console.error("Failed to load checkout details:", error);
         } finally {
@@ -65,13 +58,104 @@ export default function CheckoutScreen({ navigation }) {
         }
     };
 
+    const totalAmount = subtotal + deliveryFee;
+
+    // --- NEW: Function to actually place the order in MongoDB ---
+    const finalizeOrderInDB = async () => {
+        try {
+            const token = await AsyncStorage.getItem('authToken');
+            const ORDER_API_URL = `http://${process.env.EXPO_PUBLIC_IP}:5000/api/order/place`;
+
+            const response = await fetch(ORDER_API_URL, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    paymentMethod: paymentMethod,
+                    deliveryAddress: address,
+                    totalAmount: totalAmount
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                Alert.alert(
+                    "Order Placed!", 
+                    "Your delicious food is on the way.",
+                    [{ text: "Awesome", onPress: () => navigation.navigate('Home') }]
+                );
+            } else {
+                Alert.alert("Error", data.error || "Could not place order");
+            }
+        } catch (error) {
+            console.error("Order Creation Error:", error);
+            Alert.alert("Error", "Something went wrong while placing your order.");
+        }
+    };
+
     const handlePlaceOrder = async () => {
-        // You will create an /api/orders endpoint in Node.js to handle this later
-        Alert.alert(
-            "Order Placed!", 
-            "Your delicious food is on the way.",
-            [{ text: "Awesome", onPress: () => navigation.navigate('Home') }]
-        );
+        if (paymentMethod === 'upi' || paymentMethod === 'card') {
+            try {
+                const API_URL = `http://${process.env.EXPO_PUBLIC_IP}:5000/api/payment/generate-link`;
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: totalAmount }) 
+                });
+                
+                const data = await response.json();
+                
+                if (data.payment_url) {
+                    setPaymentUrl(data.payment_url); 
+                } else {
+                    Alert.alert("Error", "Could not generate payment link.");
+                }
+            } catch (error) {
+                Alert.alert("Error", "Could not connect to payment server.");
+            }
+        } else {
+            // If COD, just save the order to DB immediately
+            finalizeOrderInDB();
+        }
+    };
+
+    const verifyPaymentOnBackend = async (url) => {
+        try {
+            const queryString = url.split('?')[1];
+            const params = {};
+            if (queryString) {
+                queryString.split('&').forEach(param => {
+                    const [key, value] = param.split('=');
+                    params[key] = decodeURIComponent(value);
+                });
+            }
+
+            const VERIFY_URL = `http://${process.env.EXPO_PUBLIC_IP}:5000/api/payment/verify-link`;
+            const token = await AsyncStorage.getItem('authToken');
+            
+            const response = await fetch(VERIFY_URL, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(params)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // If Razorpay signature is valid, NOW save the order to DB
+                finalizeOrderInDB(); 
+            } else {
+                Alert.alert("Payment Failed", "We could not verify your transaction.");
+            }
+        } catch (error) {
+            Alert.alert("Error", "Something went wrong while verifying the payment.");
+        }
     };
 
     if (loading) {
@@ -82,13 +166,10 @@ export default function CheckoutScreen({ navigation }) {
         );
     }
 
-    const totalAmount = subtotal + deliveryFee;
-
     return (
         <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle="dark-content" backgroundColor={THEME.background} />
             
-            {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <Feather name="arrow-left" size={24} color={THEME.textDark} />
@@ -99,7 +180,6 @@ export default function CheckoutScreen({ navigation }) {
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 
-                {/* Delivery Address Section */}
                 <Text style={styles.sectionTitle}>Delivery Address</Text>
                 <View style={styles.card}>
                     <View style={styles.addressRow}>
@@ -116,7 +196,6 @@ export default function CheckoutScreen({ navigation }) {
                     </View>
                 </View>
 
-                {/* Order Summary Section */}
                 <Text style={styles.sectionTitle}>Order Summary</Text>
                 <View style={styles.card}>
                     <View style={styles.summaryRow}>
@@ -134,65 +213,29 @@ export default function CheckoutScreen({ navigation }) {
                     </View>
                 </View>
 
-                {/* Payment Options Section */}
                 <Text style={styles.sectionTitle}>Payment Method</Text>
                 <View style={styles.card}>
-                    {/* UPI Option */}
-                    <TouchableOpacity 
-                        style={styles.paymentRow} 
-                        onPress={() => setPaymentMethod('upi')}
-                    >
-                        <View style={styles.paymentIconBox}>
-                            <Feather name="smartphone" size={20} color={THEME.textDark} />
-                        </View>
+                    <TouchableOpacity style={styles.paymentRow} onPress={() => setPaymentMethod('upi')}>
+                        <View style={styles.paymentIconBox}><Feather name="smartphone" size={20} color={THEME.textDark} /></View>
                         <Text style={styles.paymentText}>UPI (GPay, PhonePe, Paytm)</Text>
-                        <Feather 
-                            name={paymentMethod === 'upi' ? "check-circle" : "circle"} 
-                            size={22} 
-                            color={paymentMethod === 'upi' ? THEME.primary : THEME.textMuted} 
-                        />
+                        <Feather name={paymentMethod === 'upi' ? "check-circle" : "circle"} size={22} color={paymentMethod === 'upi' ? THEME.primary : THEME.textMuted} />
                     </TouchableOpacity>
-
                     <View style={styles.divider} />
-
-                    {/* Card Option */}
-                    <TouchableOpacity 
-                        style={styles.paymentRow} 
-                        onPress={() => setPaymentMethod('card')}
-                    >
-                        <View style={styles.paymentIconBox}>
-                            <Feather name="credit-card" size={20} color={THEME.textDark} />
-                        </View>
+                    <TouchableOpacity style={styles.paymentRow} onPress={() => setPaymentMethod('card')}>
+                        <View style={styles.paymentIconBox}><Feather name="credit-card" size={20} color={THEME.textDark} /></View>
                         <Text style={styles.paymentText}>Credit / Debit Card</Text>
-                        <Feather 
-                            name={paymentMethod === 'card' ? "check-circle" : "circle"} 
-                            size={22} 
-                            color={paymentMethod === 'card' ? THEME.primary : THEME.textMuted} 
-                        />
+                        <Feather name={paymentMethod === 'card' ? "check-circle" : "circle"} size={22} color={paymentMethod === 'card' ? THEME.primary : THEME.textMuted} />
                     </TouchableOpacity>
-
                     <View style={styles.divider} />
-
-                    {/* Cash on Delivery Option */}
-                    <TouchableOpacity 
-                        style={styles.paymentRow} 
-                        onPress={() => setPaymentMethod('cod')}
-                    >
-                        <View style={styles.paymentIconBox}>
-                            <Feather name="dollar-sign" size={20} color={THEME.textDark} />
-                        </View>
+                    <TouchableOpacity style={styles.paymentRow} onPress={() => setPaymentMethod('cod')}>
+                        <View style={styles.paymentIconBox}><Feather name="dollar-sign" size={20} color={THEME.textDark} /></View>
                         <Text style={styles.paymentText}>Cash on Delivery</Text>
-                        <Feather 
-                            name={paymentMethod === 'cod' ? "check-circle" : "circle"} 
-                            size={22} 
-                            color={paymentMethod === 'cod' ? THEME.primary : THEME.textMuted} 
-                        />
+                        <Feather name={paymentMethod === 'cod' ? "check-circle" : "circle"} size={22} color={paymentMethod === 'cod' ? THEME.primary : THEME.textMuted} />
                     </TouchableOpacity>
                 </View>
 
             </ScrollView>
 
-            {/* Bottom Sticky Footer */}
             <View style={styles.footer}>
                 <View style={styles.footerTextContainer}>
                     <Text style={styles.footerLabel}>Amount Payable</Text>
@@ -202,6 +245,31 @@ export default function CheckoutScreen({ navigation }) {
                     <Text style={styles.placeOrderText}>Place Order</Text>
                 </TouchableOpacity>
             </View>
+
+            <Modal visible={!!paymentUrl} animationType="slide" onRequestClose={() => setPaymentUrl(null)}>
+                <SafeAreaView style={{ flex: 1, backgroundColor: THEME.background }}>
+                    <View style={styles.header}>
+                        <TouchableOpacity onPress={() => setPaymentUrl(null)} style={styles.backButton}>
+                            <Feather name="x" size={24} color={THEME.textDark} />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>Complete Payment</Text>
+                        <View style={{ width: 40 }} />
+                    </View>
+                    
+                    {paymentUrl && (
+                        <WebView 
+                            source={{ uri: paymentUrl }} 
+                            onNavigationStateChange={(navState) => {
+                                if (navState.url.includes("example-callback-url.com/paymentsuccess")) {
+                                    setPaymentUrl(null); 
+                                    verifyPaymentOnBackend(navState.url); 
+                                }
+                            }}
+                        />
+                    )}
+                </SafeAreaView>
+            </Modal>
+
         </SafeAreaView>
     );
 }
@@ -209,40 +277,27 @@ export default function CheckoutScreen({ navigation }) {
 const styles = StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: THEME.background },
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: THEME.background },
-    
-    // Header
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 15, backgroundColor: THEME.background },
     backButton: { padding: 8, marginLeft: -8 },
     headerTitle: { fontSize: 18, fontWeight: '700', color: THEME.textDark },
-    
     scrollContent: { padding: 16, paddingBottom: 100 },
     sectionTitle: { fontSize: 16, fontWeight: '700', color: THEME.textDark, marginBottom: 12, marginTop: 8 },
-    
-    // Cards
     card: { backgroundColor: THEME.card, borderRadius: 16, padding: 16, marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
-    
-    // Address
     addressRow: { flexDirection: 'row', alignItems: 'center' },
     iconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ECFDF5', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
     addressTextContainer: { flex: 1 },
     addressLabel: { fontSize: 14, fontWeight: '700', color: THEME.textDark, marginBottom: 2 },
     addressValue: { fontSize: 13, color: THEME.textMuted, lineHeight: 18 },
     changeText: { color: THEME.primary, fontWeight: '600', fontSize: 14, padding: 8 },
-    
-    // Summary
     summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
     summaryText: { fontSize: 14, color: THEME.textMuted, fontWeight: '500' },
     summaryValue: { fontSize: 14, color: THEME.textDark, fontWeight: '600' },
     divider: { height: 1, backgroundColor: THEME.border, marginVertical: 12 },
     totalText: { fontSize: 16, color: THEME.textDark, fontWeight: '800' },
     totalValue: { fontSize: 18, color: THEME.primary, fontWeight: '800' },
-    
-    // Payment
     paymentRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
     paymentIconBox: { width: 36, height: 36, borderRadius: 8, backgroundColor: THEME.background, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
     paymentText: { flex: 1, fontSize: 15, fontWeight: '600', color: THEME.textDark },
-    
-    // Footer
     footer: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', backgroundColor: THEME.card, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32, borderTopWidth: 1, borderColor: THEME.border, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 10 },
     footerTextContainer: { flex: 1 },
     footerLabel: { fontSize: 12, color: THEME.textMuted, fontWeight: '600', marginBottom: 2 },

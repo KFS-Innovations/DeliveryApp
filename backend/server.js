@@ -18,6 +18,8 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/users', require('./routes/users'));
+app.use('/api/payment', require('./routes/payment'));
+app.use('/api/order', require('./routes/order'));
 
 // --- DATABASE CONNECTION ---
 mongoose.connect(process.env.MONGODB_URI, {

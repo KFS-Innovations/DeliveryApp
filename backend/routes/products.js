@@ -5,7 +5,6 @@ const Products = require('../models/Product');
 router.get('/', async (req, res) => {
   try {
     const productsList = await Products.find(); 
-    console.log(productsList)
     
     if (productsList.length === 0) {
       return res.json([

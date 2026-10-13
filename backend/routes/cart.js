@@ -6,8 +6,6 @@ const Product = require('../models/Product');
 // Middleware to verify JWT and attach user info to req.user
 const verifyToken = require('../middleware/verifyToken');
 
-// 1. Fetch Cart (GET /api/cart)
-// Called when CartScreen mounts
 router.get('/', verifyToken, async (req, res) => {
   try {
     const cart = await Cart.findOne({ userId: req.user.id }).populate('items.productId');
@@ -20,7 +18,7 @@ router.get('/', verifyToken, async (req, res) => {
     const formattedItems = cart.items.map(item => ({
       productId: item.productId._id,
       title: item.productId.name,
-      price: parseFloat(item.productId.price.replace(/[^0-9.]/g, '')), // Parse string to float
+      price: parseFloat(item.productId.price.replace(/[^0-9.]/g, '')),
       imageUrl: item.productId.image,
       quantity: item.quantity
     }));
@@ -33,7 +31,6 @@ router.get('/', verifyToken, async (req, res) => {
 });
 
 // 2. Add to Cart (POST /api/cart/add)
-// Called when handleAddToCart is triggered in ProductDetailsScreen
 router.post('/add', verifyToken, async (req, res) => {
   const { productId, quantity } = req.body;
 
@@ -68,7 +65,6 @@ router.post('/add', verifyToken, async (req, res) => {
 });
 
 // 3. Update Item Quantity (PUT /api/cart/update)
-// Called when clicking + or - buttons in CartScreen
 router.put('/update', verifyToken, async (req, res) => {
   const { productId, quantity } = req.body;
 
@@ -77,7 +73,7 @@ router.put('/update', verifyToken, async (req, res) => {
     const cart = await Cart.findOneAndUpdate(
       { userId: req.user.id, "items.productId": productId },
       { $set: { "items.$.quantity": quantity } },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!cart) {
@@ -100,7 +96,7 @@ router.delete('/remove/:productId', verifyToken, async (req, res) => {
     const cart = await Cart.findOneAndUpdate(
       { userId: req.user.id },
       { $pull: { items: { productId: productId } } },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     res.json({ message: 'Item removed from cart', cart });
