@@ -83,7 +83,7 @@ export default function AuthScreen({ navigation }) {
 
       if (response.ok) {
         await login(data);
-        navigation.replace('Home');
+        navigation.replace('MainTabs');
       } else {
         Alert.alert('Authentication Failed', data.message || 'Something went wrong');
       }

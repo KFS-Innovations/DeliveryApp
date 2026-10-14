@@ -9,15 +9,15 @@ import {
   TouchableOpacity, 
   Image,
   StatusBar,
-  Alert
+  Alert,
+  Modal // <-- Added Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // <-- Added import
-import * as Location from 'expo-location'; // <-- Added Location import
+import AsyncStorage from '@react-native-async-storage/async-storage'; 
+import * as Location from 'expo-location'; 
 
-// Import our isolated components
 import PromoBanner from '../components/PromoBanner';
 import CategoryList from '../components/CategoryList';
 import ProductGrid from '../components/ProductGrid';
@@ -37,11 +37,33 @@ export default function HomeScreen({ navigation }) {
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // NEW: State for the user's readable location
+  // Location States
   const [currentAddress, setCurrentAddress] = useState("Fetching location...");
+  const [savedAddress, setSavedAddress] = useState(null);
+  const [isLocationModalVisible, setLocationModalVisible] = useState(false);
 
-  // 1. Fetch Products
-  useEffect(() => {
+useEffect(() => {
+    fetchProducts();
+    fetchSavedAddress();
+    checkAndLoadLocation();
+  }, []);
+
+  // Check if we already fetched the location previously
+  const checkAndLoadLocation = async () => {
+    try {
+      const cached = await AsyncStorage.getItem('cachedAddress');
+      if (cached) {
+        setCurrentAddress(cached);
+      } else {
+        // Only fetch GPS if we have no cached address
+        handleGetGPSLocation();
+      }
+    } catch (error) {
+      handleGetGPSLocation();
+    }
+  };
+
+  const fetchProducts = () => {
     const API_URL = process.env.EXPO_PUBLIC_IP 
       ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/products`
       : 'http://192.168.0.107:5000/api/products';
@@ -56,39 +78,59 @@ export default function HomeScreen({ navigation }) {
         console.error("Error fetching data: ", error);
         setIsLoading(false);
       });
-  }, []);
+  };
 
-  // 2. Fetch and Save Location
-  useEffect(() => {
-    const fetchAndSaveLocation = async () => {
-      try {
-        // Request Permission
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          setCurrentAddress("Location permission denied");
-          return;
-        }
+  // Fetch the address the user saved during checkout
+  const fetchSavedAddress = async () => {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+      if (!token) return;
+      
+      const API_URL = process.env.EXPO_PUBLIC_IP 
+        ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/users/address`
+        : 'http://192.168.0.107:5000/api/users/address';
 
-        // Get Coordinates
-        let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        
-        // Convert Coordinates to readable address (City/Region)
-        let geocode = await Location.reverseGeocodeAsync({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude
-        });
+      const res = await fetch(API_URL, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      
+      if (data.address && data.address !== "Please add a delivery address") {
+        setSavedAddress(data.address);
+      }
+    } catch (error) {
+      console.error("Error fetching saved address:", error);
+    }
+  };
 
-        let readableAddress = "Unknown Location";
-        if (geocode.length > 0) {
-          const { city, district, region } = geocode[0];
-          readableAddress = city || district || region || "Current Location";
-          setCurrentAddress(readableAddress);
-        }
+  // Get Live GPS Location
+  const handleGetGPSLocation = async () => {
+    setCurrentAddress("Fetching GPS...");
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setCurrentAddress("Location permission denied");
+        return;
+      }
 
-        // Send to Backend
-        const token = await AsyncStorage.getItem('authToken');
-        if (!token) return;
+      let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      
+      let geocode = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+      });
 
+      let readableAddress = "Unknown Location";
+      if (geocode.length > 0) {
+        const { city, district, region } = geocode[0];
+        readableAddress = city || district || region || "Current Location";
+        setCurrentAddress(readableAddress);
+      }
+      await AsyncStorage.setItem('cachedAddress', readableAddress);
+
+      // Silently update backend with live coordinates
+      const token = await AsyncStorage.getItem('authToken');
+      if (token) {
         const API_URL = process.env.EXPO_PUBLIC_IP 
           ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/users/location`
           : 'http://192.168.0.107:5000/api/users/location';
@@ -105,15 +147,12 @@ export default function HomeScreen({ navigation }) {
             address: readableAddress
           })
         });
-
-      } catch (error) {
-        console.error("Error handling location:", error);
-        setCurrentAddress("Location unavailable");
       }
-    };
-
-    fetchAndSaveLocation();
-  }, []);
+    } catch (error) {
+      console.error("Error handling location:", error);
+      setCurrentAddress("Location unavailable");
+    }
+  };
 
   return (
     <LinearGradient colors={[THEME.surface, THEME.background]} style={styles.container}>
@@ -125,15 +164,25 @@ export default function HomeScreen({ navigation }) {
           {/* Header */}
           <View style={styles.headerRow}>
             <View style={styles.headerLeft}>
-              <Image 
-                source={{ uri: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80' }} 
-                style={styles.profilePic} 
-              />
+              <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+                <Image 
+                  source={{ uri: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80' }} 
+                  style={styles.profilePic} 
+                />
+              </TouchableOpacity>
               <View style={styles.addressContainer}>
                 <Text style={styles.deliverToText}>Deliver to {user?.user?.name ? `• ${user.user.name}` : ''}</Text>
-                <TouchableOpacity style={styles.addressSelector}>
-                  {/* Updated to show the fetched location */}
-                  <Text style={styles.addressText} numberOfLines={1}>{currentAddress}</Text>
+                
+                {/* Make Address Clickable */}
+                <TouchableOpacity 
+                  style={styles.addressSelector}
+                  onPress={() => setLocationModalVisible(true)}
+                >
+                  <Text style={styles.addressText} numberOfLines={1}>
+                    {currentAddress.length > 22 
+                      ? `${currentAddress.substring(0, 14)}..` 
+                      : currentAddress}
+                  </Text>
                   <Ionicons name="caret-down" size={14} color={THEME.primary} style={{ marginLeft: 4 }} />
                 </TouchableOpacity>
               </View>
@@ -169,25 +218,64 @@ export default function HomeScreen({ navigation }) {
         </ScrollView>
       </SafeAreaView>
 
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons name="home" size={24} color={THEME.primary} />
-          <Text style={[styles.navText, { color: THEME.primary }]}>Home</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
-          <Feather name="file-text" size={24} color={THEME.textMuted} />
-          <Text style={styles.navText}>Orders</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
-          <Feather name="message-circle" size={24} color={THEME.textMuted} />
-          <Text style={styles.navText}>Offers</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
-          <Feather name="user" size={24} color={THEME.textMuted} />
-          <Text style={styles.navText}>Profile</Text>
-        </TouchableOpacity>
-      </View>
+      {/* LOCATION SELECTION MODAL */}
+      <Modal visible={isLocationModalVisible} animationType="fade" transparent={true} onRequestClose={() => setLocationModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Choose Delivery Location</Text>
+              <TouchableOpacity onPress={() => setLocationModalVisible(false)}>
+                <Feather name="x" size={24} color={THEME.textMuted} />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Option 1: Live GPS */}
+            <TouchableOpacity 
+              style={styles.locationOption}
+              onPress={() => {
+                handleGetGPSLocation();
+                setLocationModalVisible(false);
+              }}
+            >
+              <View style={styles.locationIconBox}>
+                <Feather name="navigation" size={20} color={THEME.primary} />
+              </View>
+              <View style={styles.locationOptionTextContainer}>
+                <Text style={styles.locationOptionTitle}>Use Current Location</Text>
+                <Text style={styles.locationOptionSub}>Fetch location via GPS</Text>
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.divider} />
+
+            {/* Option 2: Saved Address */}
+            <TouchableOpacity 
+              style={styles.locationOption}
+              onPress={async () => {
+                if (savedAddress) {
+                  setCurrentAddress(savedAddress);
+                  await AsyncStorage.setItem('cachedAddress', savedAddress); // <-- Cache their choice
+                  setLocationModalVisible(false);
+                } else {
+                  Alert.alert("No Saved Address", "You can save an address during the checkout process.");
+                }
+              }}
+            >
+              <View style={[styles.locationIconBox, { backgroundColor: '#F1F5F9' }]}>
+                <Feather name="map-pin" size={20} color={THEME.textDark} />
+              </View>
+              <View style={styles.locationOptionTextContainer}>
+                <Text style={styles.locationOptionTitle}>Saved Address</Text>
+                <Text style={styles.locationOptionSub} numberOfLines={2}>
+                  {savedAddress ? savedAddress : "No address saved yet"}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+          </View>
+        </View>
+      </Modal>
+
     </LinearGradient>
   );
 }
@@ -215,5 +303,17 @@ const styles = StyleSheet.create({
   
   bottomNav: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 12, paddingBottom: 20, borderTopWidth: 1, borderTopColor: THEME.border, backgroundColor: THEME.surface },
   navItem: { alignItems: 'center' },
-  navText: { fontSize: 10, fontWeight: '600', color: THEME.textMuted, marginTop: 4 }
+  navText: { fontSize: 10, fontWeight: '600', color: THEME.textMuted, marginTop: 4 },
+
+  // Modal Styles
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: THEME.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: THEME.textPrimary },
+  locationOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+  locationIconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ECFDF5', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  locationOptionTextContainer: { flex: 1 },
+  locationOptionTitle: { fontSize: 16, fontWeight: '600', color: THEME.textPrimary, marginBottom: 4 },
+  locationOptionSub: { fontSize: 13, color: THEME.textMuted, lineHeight: 18 },
+  divider: { height: 1, backgroundColor: THEME.border, marginVertical: 8 }
 });

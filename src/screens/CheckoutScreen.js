@@ -8,12 +8,16 @@ import {
     ActivityIndicator,
     StatusBar,
     Alert,
-    Modal
+    Modal,
+    TextInput,
+    KeyboardAvoidingView,
+    Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WebView } from 'react-native-webview'; 
+import * as Location from 'expo-location'; 
 
 const THEME = {
     primary: '#10B981',
@@ -30,12 +34,35 @@ export default function CheckoutScreen({ navigation }) {
     const [subtotal, setSubtotal] = useState(0);
     const [deliveryFee, setDeliveryFee] = useState(40);
     const [paymentMethod, setPaymentMethod] = useState('cod'); 
-    const [address, setAddress] = useState("Trivandrum, Kerala, India");
+    const [address, setAddress] = useState("Fetching your location...");
     const [paymentUrl, setPaymentUrl] = useState(null);
+
+    // --- UPDATED: Structured Address States ---
+    const [isAddressModalVisible, setAddressModalVisible] = useState(false);
+    const [houseDetails, setHouseDetails] = useState("");
+    const [areaDetails, setAreaDetails] = useState("");
+    const [landmark, setLandmark] = useState("");
+    const [isFetchingLocation, setIsFetchingLocation] = useState(false);
 
     useEffect(() => {
         fetchCheckoutData();
+        fetchUserAddress(); 
     }, []);
+
+    const fetchUserAddress = async () => {
+        try {
+            const token = await AsyncStorage.getItem('authToken');
+            const res = await fetch(`http://${process.env.EXPO_PUBLIC_IP}:5000/api/users/address`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.address) {
+                setAddress(data.address);
+            }
+        } catch (error) {
+            console.error("Fetch address error:", error);
+        }
+    };
 
     const fetchCheckoutData = async () => {
         try {
@@ -58,9 +85,72 @@ export default function CheckoutScreen({ navigation }) {
         }
     };
 
+    // --- UPDATED: Get Live GPS and autofill Area field ---
+    const handleGetCurrentLocation = async () => {
+        setIsFetchingLocation(true);
+        try {
+            let { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission Denied', 'Allow location access to pin your address.');
+                setIsFetchingLocation(false);
+                return;
+            }
+
+            let location = await Location.getCurrentPositionAsync({});
+            
+            let geocode = await Location.reverseGeocodeAsync({
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude
+            });
+
+            if (geocode.length > 0) {
+                const place = geocode[0];
+                const areaInfo = [place.name, place.street, place.subregion, place.city, place.postalCode].filter(Boolean).join(', ');
+                setAreaDetails(areaInfo); // Auto-fills the middle input field
+            }
+        } catch (error) {
+            Alert.alert('Error', 'Could not fetch location.');
+        } finally {
+            setIsFetchingLocation(false);
+        }
+    };
+
+    // --- UPDATED: Combine fields and save to DB ---
+    const handleSaveAddress = async () => {
+        if (!houseDetails.trim() || !areaDetails.trim()) {
+            return Alert.alert("Required Fields", "Please enter your House/Flat No. and Area.");
+        }
+        
+        // Combine them into a single string for your backend
+        const fullAddress = `${houseDetails}, ${areaDetails}${landmark ? `, Near ${landmark}` : ''}`;
+        
+        try {
+            const token = await AsyncStorage.getItem('authToken');
+            const res = await fetch(`http://${process.env.EXPO_PUBLIC_IP}:5000/api/users/address`, {
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify({ address: fullAddress })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                setAddress(fullAddress);
+                setAddressModalVisible(false); // Close the modal
+                // Clear the form for next time
+                setHouseDetails("");
+                setAreaDetails("");
+                setLandmark("");
+            }
+        } catch (error) {
+            Alert.alert("Error", "Failed to save address");
+        }
+    };
+
     const totalAmount = subtotal + deliveryFee;
 
-    // --- NEW: Function to actually place the order in MongoDB ---
     const finalizeOrderInDB = async () => {
         try {
             const token = await AsyncStorage.getItem('authToken');
@@ -117,7 +207,6 @@ export default function CheckoutScreen({ navigation }) {
                 Alert.alert("Error", "Could not connect to payment server.");
             }
         } else {
-            // If COD, just save the order to DB immediately
             finalizeOrderInDB();
         }
     };
@@ -148,7 +237,6 @@ export default function CheckoutScreen({ navigation }) {
             const data = await response.json();
 
             if (data.success) {
-                // If Razorpay signature is valid, NOW save the order to DB
                 finalizeOrderInDB(); 
             } else {
                 Alert.alert("Payment Failed", "We could not verify your transaction.");
@@ -188,9 +276,9 @@ export default function CheckoutScreen({ navigation }) {
                         </View>
                         <View style={styles.addressTextContainer}>
                             <Text style={styles.addressLabel}>Home</Text>
-                            <Text style={styles.addressValue} numberOfLines={2}>{address}</Text>
+                            <Text style={styles.addressValue} numberOfLines={3}>{address}</Text>
                         </View>
-                        <TouchableOpacity>
+                        <TouchableOpacity onPress={() => setAddressModalVisible(true)}>
                             <Text style={styles.changeText}>Edit</Text>
                         </TouchableOpacity>
                     </View>
@@ -246,6 +334,75 @@ export default function CheckoutScreen({ navigation }) {
                 </TouchableOpacity>
             </View>
 
+            {/* --- UPDATED: STRUCTURED ADDRESS MODAL --- */}
+            <Modal visible={isAddressModalVisible} animationType="fade" transparent={true} onRequestClose={() => setAddressModalVisible(false)}>
+                {/* KeyboardAvoidingView prevents the keyboard from hiding the save button */}
+                <KeyboardAvoidingView 
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+                    style={styles.modalOverlay}
+                >
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Update Delivery Address</Text>
+                        
+                        <TouchableOpacity 
+                            style={styles.locationBtn}
+                            onPress={handleGetCurrentLocation}
+                        >
+                            {isFetchingLocation ? (
+                                <ActivityIndicator size="small" color={THEME.primary} style={{ marginRight: 8 }} />
+                            ) : (
+                                <Feather name="map-pin" size={20} color={THEME.primary} style={{ marginRight: 8 }} />
+                            )}
+                            <Text style={styles.locationBtnText}>Pin Current Location</Text>
+                        </TouchableOpacity>
+
+                        <Text style={styles.inputLabel}>House / Flat / Block No.*</Text>
+                        <TextInput
+                            style={styles.addressInput}
+                            placeholder="e.g. Flat 4B, Skyline Apartments"
+                            placeholderTextColor={THEME.textMuted}
+                            value={houseDetails}
+                            onChangeText={setHouseDetails}
+                        />
+
+                        <Text style={styles.inputLabel}>Area / Street / Sector*</Text>
+                        <TextInput
+                            style={styles.addressInput}
+                            placeholder="e.g. MG Road, Near City Center"
+                            placeholderTextColor={THEME.textMuted}
+                            value={areaDetails}
+                            onChangeText={setAreaDetails}
+                            multiline
+                        />
+
+                        <Text style={styles.inputLabel}>Landmark (Optional)</Text>
+                        <TextInput
+                            style={styles.addressInput}
+                            placeholder="e.g. Opposite Metro Station"
+                            placeholderTextColor={THEME.textMuted}
+                            value={landmark}
+                            onChangeText={setLandmark}
+                        />
+
+                        <View style={styles.modalActionRow}>
+                            <TouchableOpacity 
+                                style={styles.modalCancelBtn}
+                                onPress={() => setAddressModalVisible(false)}
+                            >
+                                <Text style={styles.modalCancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={styles.modalSaveBtn}
+                                onPress={handleSaveAddress}
+                            >
+                                <Text style={styles.modalSaveText}>Save Address</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
+
+            {/* RAZORPAY WEBVIEW MODAL */}
             <Modal visible={!!paymentUrl} animationType="slide" onRequestClose={() => setPaymentUrl(null)}>
                 <SafeAreaView style={{ flex: 1, backgroundColor: THEME.background }}>
                     <View style={styles.header}>
@@ -285,7 +442,7 @@ const styles = StyleSheet.create({
     card: { backgroundColor: THEME.card, borderRadius: 16, padding: 16, marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
     addressRow: { flexDirection: 'row', alignItems: 'center' },
     iconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ECFDF5', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-    addressTextContainer: { flex: 1 },
+    addressTextContainer: { flex: 1, paddingRight: 8 },
     addressLabel: { fontSize: 14, fontWeight: '700', color: THEME.textDark, marginBottom: 2 },
     addressValue: { fontSize: 13, color: THEME.textMuted, lineHeight: 18 },
     changeText: { color: THEME.primary, fontWeight: '600', fontSize: 14, padding: 8 },
@@ -303,5 +460,19 @@ const styles = StyleSheet.create({
     footerLabel: { fontSize: 12, color: THEME.textMuted, fontWeight: '600', marginBottom: 2 },
     footerAmount: { fontSize: 20, fontWeight: '800', color: THEME.textDark },
     placeOrderBtn: { backgroundColor: THEME.primary, paddingVertical: 14, paddingHorizontal: 28, borderRadius: 12, shadowColor: THEME.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
-    placeOrderText: { color: '#FFF', fontWeight: '700', fontSize: 16 }
+    placeOrderText: { color: '#FFF', fontWeight: '700', fontSize: 16 },
+    
+    // Address Modal Styles
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+    modalContent: { backgroundColor: THEME.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 },
+    modalTitle: { fontSize: 18, fontWeight: '700', color: THEME.textDark, marginBottom: 20 },
+    locationBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ECFDF5', padding: 14, borderRadius: 12, marginBottom: 20, borderWidth: 1, borderColor: '#D1FAE5' },
+    locationBtnText: { color: THEME.primary, fontWeight: '700', fontSize: 15 },
+    inputLabel: { fontSize: 13, fontWeight: '600', color: THEME.textDark, marginBottom: 6, marginTop: 10 },
+    addressInput: { borderWidth: 1, borderColor: THEME.border, borderRadius: 10, padding: 12, fontSize: 15, color: THEME.textDark, backgroundColor: THEME.background },
+    modalActionRow: { flexDirection: 'row', marginTop: 24, gap: 12 },
+    modalCancelBtn: { flex: 1, padding: 16, borderRadius: 12, backgroundColor: THEME.background, alignItems: 'center' },
+    modalCancelText: { color: THEME.textMuted, fontWeight: '600', fontSize: 15 },
+    modalSaveBtn: { flex: 1, padding: 16, borderRadius: 12, backgroundColor: THEME.primary, alignItems: 'center', shadowColor: THEME.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
+    modalSaveText: { color: '#FFF', fontWeight: '700', fontSize: 15 }
 });

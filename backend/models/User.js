@@ -9,7 +9,8 @@ const UserSchema = new mongoose.Schema({
     latitude: { type: Number },
     longitude: { type: Number },
     address: { type: String }
-  }
+  },
+  deliveryAddress: { type: String, default: "" },
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', UserSchema, 'Users');
