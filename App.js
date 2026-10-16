@@ -12,8 +12,10 @@ import CartScreen from './src/screens/CartScreen';
 import CheckoutScreen from './src/screens/CheckoutScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import { AuthProvider } from './src/context/AuthContext';
-import { TouchableOpacity } from 'react-native';
+import OrderStatusScreen from './src/screens/OrderStatusScreen';
+import OrdersScreen from './src/screens/OrdersScreen';
 
+import { TouchableOpacity } from 'react-native';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
@@ -21,7 +23,7 @@ const Tab = createBottomTabNavigator();
 function MainTabs() {
   return (
 <Tab.Navigator
-      screenOptions={({ route }) => ({
+      screenOptions={({ route }) => ({ 
         headerShown: false,
         tabBarActiveTintColor: '#10B981',
         tabBarInactiveTintColor: '#64748B',
@@ -77,6 +79,8 @@ export default function App() {
           <Stack.Screen name="ProductDetails" component={ProductDetailsScreen} />
           <Stack.Screen name="Cart" component={CartScreen} />
           <Stack.Screen name="Checkout" component={CheckoutScreen} />
+          <Stack.Screen name="OrderStatus" component={OrderStatusScreen} />
+          <Stack.Screen name="Orders" component={OrdersScreen} options={{ headerShown: false }} />
         </Stack.Navigator>
       </NavigationContainer>
     </AuthProvider>

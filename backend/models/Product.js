@@ -9,7 +9,9 @@ const ProductsSchema = new mongoose.Schema({
   deliveryNote: String,
   price: String,
   image: String,
-  description: String, // <-- NEW FIELD
+  description: String,
+  sellerPhone: String,
+  category: String,
   isFavorite: { type: Boolean, default: false }
 });
 

@@ -15,9 +15,12 @@ router.get('/', async (req, res) => {
           time: '25 min',
           rating: '4.9',
           reviews: '120+',
-          deliveryNote: '$0 Delivery fee',
-          price: '$4.99',
+          deliveryNote: '₹0 Delivery fee',
+          price: '₹40',
           image: 'https://images.unsplash.com/photo-1526653054275-4a4f37eb1d7f?auto=format&fit=crop&w=400&q=80',
+          description: 'Farm fresh coconuts harvested daily from the backwaters of Kerala. Perfect for cooking or drinking.', // <-- Added
+          sellerPhone: '+919876543210',
+          category: 'Coconut',
           isFavorite: false
         }
       ]);

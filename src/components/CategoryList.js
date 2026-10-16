@@ -1,10 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { COLORS, CATEGORIES, CATEGORY_ITEM_WIDTH } from '../components/theme';
 
-export default function CategoryList() {
-  const [activeCategory, setActiveCategory] = useState('1');
-
+export default function CategoryList({ selectedCategory, onSelectCategory }) {
   return (
     <ScrollView 
       horizontal 
@@ -15,13 +13,13 @@ export default function CategoryList() {
       snapToAlignment="start"
     >
       {CATEGORIES.map((cat) => {
-        const isActive = activeCategory === cat.id;
+        const isActive = selectedCategory === cat.name;
         
         return (
           <TouchableOpacity 
             key={cat.id} 
             style={styles.categoryItem}
-            onPress={() => setActiveCategory(cat.id)}
+            onPress={() => onSelectCategory(cat.name)} // Update the state in HomeScreen
             activeOpacity={0.8}
           >
             <View style={[

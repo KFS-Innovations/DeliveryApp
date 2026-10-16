@@ -174,8 +174,13 @@ export default function CheckoutScreen({ navigation }) {
             if (data.success) {
                 Alert.alert(
                     "Order Placed!", 
-                    "Your delicious food is on the way.",
-                    [{ text: "Awesome", onPress: () => navigation.navigate('Home') }]
+                    "Your order has been confirmed successfully.",
+                    [
+                        { 
+                            text: "Track Order", 
+                            onPress: () => navigation.replace('OrderStatus', { orderId: data.orderId }) 
+                        }
+                    ]
                 );
             } else {
                 Alert.alert("Error", data.error || "Could not place order");

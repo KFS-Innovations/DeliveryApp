@@ -1,10 +1,12 @@
-// routes/order.js
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
 const Cart = require('../models/Cart');
+const Product = require('../models/Product'); // Using plural Products matching your schema
 const verifyToken = require('../middleware/verifyToken');
 
+
+// 1. PLACE NEW ORDER
 router.post('/place', verifyToken, async (req, res) => {
     try {
         const { paymentMethod, deliveryAddress, totalAmount } = req.body;
@@ -20,7 +22,6 @@ router.post('/place', verifyToken, async (req, res) => {
             price: parseFloat(item.productId.price.replace(/[^0-9.]/g, ''))
         }));
 
-        // 3. Create and save the new Order
         const newOrder = new Order({
             userId: req.user.id,
             items: orderItems,
@@ -32,7 +33,6 @@ router.post('/place', verifyToken, async (req, res) => {
 
         await newOrder.save();
 
-        // 4. Empty the user's cart now that the order is placed
         cart.items = [];
         await cart.save();
 
@@ -41,6 +41,69 @@ router.post('/place', verifyToken, async (req, res) => {
     } catch (error) {
         console.error("Place Order Error:", error);
         res.status(500).json({ error: 'Failed to place order' });
+    }
+});
+
+// 2. GET ORDER HISTORY (MUST BE ABOVE /:id)
+router.get('/history', verifyToken, async (req, res) => {
+    try {
+        const orders = await Order.find({ userId: req.user.id })
+            .populate('items.productId', 'name image price') 
+            .sort({ createdAt: -1 });
+
+        res.json({ success: true, orders });
+    } catch (error) {
+        console.error("Fetch Orders Error:", error);
+        res.status(500).json({ error: 'Failed to fetch order history' });
+    }
+});
+
+// 3. GET SINGLE ORDER STATUS
+router.get('/:id', verifyToken, async (req, res) => {
+    try {
+        const order = await Order.findById(req.params.id).populate('items.productId');
+        if (!order) {
+            return res.status(404).json({ error: 'Order not found' });
+        }
+        res.json({ success: true, order });
+    } catch (error) {
+        console.error("Fetch Single Order Error:", error);
+        res.status(500).json({ error: 'Failed to fetch order status' });
+    }
+});
+
+// 4. UPDATE ORDER STATUS (For testing / Seller API)
+router.put('/:id/status', verifyToken, async (req, res) => {
+    try {
+        let { orderStatus, deliveryPartner } = req.body;
+        
+        // If the seller/Postman doesn't provide a driver, inject a dummy one automatically
+        if (!deliveryPartner && (orderStatus === 'Preparing' || orderStatus === 'Out for Delivery')) {
+            deliveryPartner = {
+                name: "Ramesh (Test Driver)",
+                phone: "+91 98765 43210"
+            };
+        }
+        
+        const updatedOrder = await Order.findByIdAndUpdate(
+            req.params.id,
+            { 
+                $set: { 
+                    orderStatus: orderStatus, 
+                    ...(deliveryPartner && { deliveryPartner }) 
+                }
+            },
+            { new: true }
+        ).populate('items.productId');
+
+        if (!updatedOrder) {
+            return res.status(404).json({ error: 'Order not found' });
+        }
+
+        res.json({ success: true, message: 'Order updated successfully', order: updatedOrder });
+    } catch (error) {
+        console.error("Update Order Status Error:", error);
+        res.status(500).json({ error: 'Failed to update order status' });
     }
 });
 

@@ -21,12 +21,12 @@ export const COLORS = {
 };
 
 export const CATEGORIES = [
+  { id: '0', name: 'All', icon: '🍽️' }, // Added so users can clear the filter
   { id: '1', name: 'Veg', icon: '🥬' },
   { id: '2', name: 'Dairy', icon: '🥛' },
   { id: '3', name: 'Fruits', icon: '🍎' },
-  { id: '4', name: 'Coconuts', icon: '🥥' },
-  { id: '5', name: 'Spices', icon: '🌶️' },
-  { id: '6', name: 'Bread', icon: '🍞' },
-  { id: '7', name: 'Drinks', icon: '🧃' },
-  { id: '8', name: 'More', icon: '📦' },
+  { id: '4', name: 'Coconut', icon: '🥥' },
+  { id: '5', name: 'Meat', icon: '🥩' }, // Updated icon to meat instead of a pepper
+  { id: '6', name: 'Fish', icon: '🐟' },
+  { id: '7', name: 'More', icon: '📦' },
 ];

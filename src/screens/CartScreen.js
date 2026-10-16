@@ -170,7 +170,7 @@ export default function CartScreen({ navigation }) {
                     </View>
                     <Text style={styles.emptyTitle}>Your cart is empty</Text>
                     <Text style={styles.emptyText}>Looks like you haven't added anything to your cart yet.</Text>
-                    <TouchableOpacity style={styles.browseBtn} onPress={() => navigation.navigate('Home')}>
+                    <TouchableOpacity style={styles.browseBtn} onPress={() => navigation.replace('MainTabs')}>
                         <Text style={styles.browseText}>Start Shopping</Text>
                     </TouchableOpacity>
                 </View>

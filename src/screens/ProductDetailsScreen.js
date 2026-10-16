@@ -9,7 +9,8 @@ import {
   ActivityIndicator,
   StatusBar,
   Dimensions,
-  Alert
+  Alert,
+  Linking
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -18,13 +19,32 @@ import { COLORS } from '../components/theme';
 
 const { width } = Dimensions.get('window');
 
+// Helper function to determine units and steps based on category
+const getUnitConfig = (category) => {
+  switch (category?.toLowerCase()) {
+    case 'veg':
+    case 'fruits':
+    case 'meat':
+    case 'fish':
+      return { unit: 'kg', step: 0.5, min: 0.5 };
+    case 'dairy':
+      return { unit: 'L', step: 1, min: 1 };
+    case 'coconuts':
+    default:
+      return { unit: 'pcs', step: 1, min: 1 };
+  }
+};
+
 export default function ProductDetailsScreen({ route, navigation }) {
   const { product } = route.params;
   
   const [otherProducts, setOtherProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
-  const [quantity, setQuantity] = useState(1);
+  
+  // Initialize quantity and rules based on the product's category
+  const unitConfig = getUnitConfig(product.category);
+  const [quantity, setQuantity] = useState(unitConfig.min);
 
   useEffect(() => {
     const fetchOtherProducts = async () => {
@@ -48,12 +68,15 @@ export default function ProductDetailsScreen({ route, navigation }) {
     fetchOtherProducts();
   }, [product]);
 
-  const increment = () => setQuantity(prev => prev + 1);
-  const decrement = () => setQuantity(prev => (prev > 1 ? prev - 1 : 1));
+  // Updated increment/decrement logic using category steps (e.g., +0.5kg or +1pc)
+  const increment = () => setQuantity(prev => prev + unitConfig.step);
+  const decrement = () => setQuantity(prev => (prev > unitConfig.min ? prev - unitConfig.step : unitConfig.min));
 
   // Extract numerical value from price string (e.g. "₹60" -> 60) for total calculation
   const numericPrice = parseFloat(product.price.replace(/[^0-9.]/g, '')) || 0;
   const currencySymbol = product.price.replace(/[0-9.]/g, '') || '₹';
+  
+  // Total price automatically handles fractional quantities (e.g., ₹100 * 0.5kg = ₹50)
   const totalPrice = (numericPrice * quantity).toFixed(2);
 
   const handleAddToCart = async () => {
@@ -72,13 +95,11 @@ export default function ProductDetailsScreen({ route, navigation }) {
         },
         body: JSON.stringify({
           productId: product._id,
-          quantity: quantity,
-          
+          quantity: quantity, // Sends the correct float/integer to the backend
         })
       });
 
       if (response.ok) {
-        // Redirect to Cart Screen on success
         navigation.navigate('Cart');
       } else {
         const errorData = await response.json(); 
@@ -92,11 +113,17 @@ export default function ProductDetailsScreen({ route, navigation }) {
     }
   };
 
+  const handleContactSeller = () => {
+    const sellerPhone = product.sellerPhone || '+919876543210'; 
+    Linking.openURL(`tel:${sellerPhone}`).catch(err => {
+      Alert.alert("Error", "Could not open phone dialer.");
+    });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
       
-      {/* Standard Clean Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerIconBtn}>
           <Feather name="chevron-left" size={28} color={COLORS.textDark} />
@@ -117,14 +144,17 @@ export default function ProductDetailsScreen({ route, navigation }) {
         <View style={styles.titleArea}>
           <View style={styles.titleColumn}>
             <Text style={styles.productName}>{product.name}</Text>
-            <Text style={styles.shopName}>By {product.shop || "Our Store"}</Text>
+            <Text style={styles.shopName}>By {product.shop}</Text>
           </View>
           
           <View style={styles.qtyBox}>
             <TouchableOpacity onPress={decrement} style={styles.qtyBtn}>
               <Feather name="minus" size={18} color={COLORS.textDark} />
             </TouchableOpacity>
-            <Text style={styles.qtyText}>{quantity}</Text>
+            
+            {/* Displaying the category-specific unit next to the quantity */}
+            <Text style={styles.qtyText}>{quantity} {unitConfig.unit}</Text>
+            
             <TouchableOpacity onPress={increment} style={styles.qtyBtn}>
               <Feather name="plus" size={18} color={COLORS.textDark} />
             </TouchableOpacity>
@@ -137,15 +167,15 @@ export default function ProductDetailsScreen({ route, navigation }) {
             <View style={[styles.iconCircle, { backgroundColor: '#FEF3C7' }]}>
               <Ionicons name="star" size={20} color="#D97706" />
             </View>
-            <Text style={styles.infoValue}>{product.rating}</Text>
-            <Text style={styles.infoLabel}>{product.reviews} Reviews</Text>
+            <Text style={styles.infoValue}>{product.rating || "4.8"}</Text>
+            <Text style={styles.infoLabel}>{product.reviews || "120"} Reviews</Text>
           </View>
           
           <View style={styles.infoCard}>
             <View style={[styles.iconCircle, { backgroundColor: '#E0F2FE' }]}>
               <Feather name="clock" size={20} color="#0369A1" />
             </View>
-            <Text style={styles.infoValue}>{product.time}</Text>
+            <Text style={styles.infoValue}>{product.time || "30m"}</Text>
             <Text style={styles.infoLabel}>Delivery</Text>
           </View>
           
@@ -166,6 +196,23 @@ export default function ProductDetailsScreen({ route, navigation }) {
           <Text style={styles.descriptionText}>
             {product.description || "Premium quality product carefully selected for you. Enjoy the fresh taste and standard delivery to your doorstep."}
           </Text>
+        </View>
+
+        {/* Seller Contact Card */}
+        <View style={styles.sellerCard}>
+          <View style={styles.sellerInfo}>
+            <View style={styles.sellerAvatar}>
+              <Feather name="shield" size={20} color={COLORS.primary} />
+            </View>
+            <View>
+              <Text style={styles.sellerName}>{product.sellerName || product.shop || "Official Store"}</Text>
+              <Text style={styles.sellerVerified}>Verified Seller</Text>
+            </View>
+          </View>
+          <TouchableOpacity style={styles.contactBtn} onPress={handleContactSeller}>
+            <Feather name="phone-call" size={18} color={COLORS.primary} />
+            <Text style={styles.contactBtnText}>Call</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Related Items */}
@@ -196,14 +243,13 @@ export default function ProductDetailsScreen({ route, navigation }) {
 
       </ScrollView>
 
-      {/* Sticky Bottom Bar with Total Price */}
+      {/* Sticky Bottom Bar */}
       <View style={styles.bottomBar}>
         <View style={styles.priceContainer}>
           <Text style={styles.priceLabel}>Total Price</Text>
           <Text style={styles.totalPrice}>{currencySymbol}{totalPrice}</Text>
         </View>
 
-        {/* Updated Button */}
         <TouchableOpacity 
           style={[styles.cartButton, isAddingToCart && { opacity: 0.8 }]} 
           onPress={handleAddToCart}
@@ -227,25 +273,23 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF' },
   scrollContent: { paddingBottom: 100 },
   
-  // Header
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
   headerIconBtn: { padding: 8 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textDark },
   
-  // Image
   imageWrapper: { width: width - 40, height: width - 40, alignSelf: 'center', backgroundColor: '#F8FAFC', borderRadius: 32, marginTop: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.04, shadowRadius: 16, elevation: 2 },
   productImage: { width: '100%', height: '100%', resizeMode: 'cover', borderRadius: 32 },
   
-  // Title & Qty
   titleArea: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginTop: 30, marginBottom: 24 },
   titleColumn: { flex: 1, marginRight: 16 },
   productName: { fontSize: 24, fontWeight: '800', color: COLORS.textDark, marginBottom: 4 },
   shopName: { fontSize: 14, color: COLORS.textMuted, fontWeight: '600' },
+  
   qtyBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', borderRadius: 20, padding: 4 },
   qtyBtn: { padding: 12, backgroundColor: '#FFF', borderRadius: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
-  qtyText: { fontSize: 16, fontWeight: '700', color: COLORS.textDark, paddingHorizontal: 16 },
+  // Reduced paddingHorizontal slightly to accommodate the added unit string (e.g., 'kg')
+  qtyText: { fontSize: 15, fontWeight: '700', color: COLORS.textDark, paddingHorizontal: 12, minWidth: 50, textAlign: 'center' },
   
-  // Info Grid
   infoGrid: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 24, marginBottom: 30 },
   infoCard: { flex: 1, alignItems: 'center', backgroundColor: '#FFF', paddingVertical: 16, borderRadius: 20, marginHorizontal: 4, borderWidth: 1, borderColor: '#F1F5F9' },
   iconCircle: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
@@ -254,20 +298,25 @@ const styles = StyleSheet.create({
   
   divider: { height: 1, backgroundColor: '#F1F5F9', marginHorizontal: 24, marginBottom: 30 },
   
-  // Sections
-  section: { paddingHorizontal: 24, marginBottom: 32 },
+  section: { paddingHorizontal: 24, marginBottom: 24 },
   sectionTitle: { fontSize: 18, fontWeight: '800', color: COLORS.textDark, marginBottom: 12 },
   descriptionText: { fontSize: 15, color: COLORS.textMuted, lineHeight: 24, fontWeight: '500' },
   emptyText: { color: COLORS.textMuted, fontStyle: 'italic' },
+
+  sellerCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', padding: 16, borderRadius: 20, marginHorizontal: 24, marginBottom: 32, borderWidth: 1, borderColor: '#F1F5F9' },
+  sellerInfo: { flexDirection: 'row', alignItems: 'center' },
+  sellerAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#DCFCE7', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  sellerName: { fontSize: 15, fontWeight: '700', color: COLORS.textDark },
+  sellerVerified: { fontSize: 12, color: COLORS.primary, fontWeight: '600', marginTop: 2 },
+  contactBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  contactBtnText: { fontSize: 13, fontWeight: '700', color: COLORS.textDark, marginLeft: 6 },
   
-  // Related Items
   horizontalList: { flexDirection: 'row', marginLeft: -24, paddingLeft: 24 },
   relatedCard: { width: 120, marginRight: 16 },
   relatedImage: { width: 120, height: 120, borderRadius: 20, backgroundColor: '#F8FAFC', marginBottom: 10 },
   relatedName: { fontSize: 14, fontWeight: '600', color: COLORS.textDark, marginBottom: 4, lineHeight: 20 },
   relatedPrice: { fontSize: 15, fontWeight: '800', color: COLORS.primary },
   
-  // Sticky Bottom Bar
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFF', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingVertical: 16, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
   priceContainer: { flex: 1 },
   priceLabel: { fontSize: 13, color: COLORS.textMuted, fontWeight: '600', marginBottom: 2 },

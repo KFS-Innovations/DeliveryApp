@@ -25,7 +25,6 @@ const THEME = {
 };
 
 export default function ProfileScreen({ navigation }) {
-    // Assuming your AuthContext provides the user object and a logout function
     const { user, logout } = useContext(AuthContext);
 
     const handleLogout = () => {
@@ -38,12 +37,20 @@ export default function ProfileScreen({ navigation }) {
                     text: "Log Out", 
                     style: "destructive",
                     onPress: async () => {
-                        if (logout) {
-                            logout();
-                        } else {
-                            // Fallback if logout function isn't in context
+                        try {
+                            // 1. Clear the token from storage
                             await AsyncStorage.removeItem('authToken');
-                            navigation.replace('Login'); 
+
+                            if (logout) {
+                                logout();
+                            }
+                            navigation.reset({
+                                index: 0,
+                                routes: [{ name: 'Auth' }],
+                            });
+                        } catch (error) {
+                            console.error("Logout Error:", error);
+                            Alert.alert("Error", "Could not log out. Please try again.");
                         }
                     }
                 }
@@ -86,10 +93,11 @@ export default function ProfileScreen({ navigation }) {
                         style={styles.avatar} 
                     />
                     <View style={styles.profileInfo}>
-                        <Text style={styles.userName}>{user?.user?.name || 'Guest User'}</Text>
-                        <Text style={styles.userEmail}>{user?.user?.email || 'guest@example.com'}</Text>
+                        {/* Removed the extra .user nesting */}
+                        <Text style={styles.userName}>{user?.name || 'Guest User'}</Text>
+                        <Text style={styles.userEmail}>{user?.email || 'guest@example.com'}</Text>
                         <View style={styles.badge}>
-                            <Text style={styles.badgeText}>Foodie Pro</Text>
+                            <Text style={styles.badgeText}>Elite User</Text>
                         </View>
                     </View>
                 </View>
@@ -101,7 +109,7 @@ export default function ProfileScreen({ navigation }) {
                         icon="shopping-bag" 
                         title="My Orders" 
                         subtitle="View your order history" 
-                        onPress={() => navigation.navigate('OrderHistory')} 
+                        onPress={() => navigation.navigate('Orders')} 
                     />
                     <View style={styles.divider} />
                     <MenuOption 
@@ -110,24 +118,11 @@ export default function ProfileScreen({ navigation }) {
                         subtitle="Manage saved addresses" 
                         onPress={() => Alert.alert("Coming Soon", "Address manager is under construction")} 
                     />
-                    <View style={styles.divider} />
-                    <MenuOption 
-                        icon="credit-card" 
-                        title="Payment Methods" 
-                        subtitle="Manage cards and UPI" 
-                        onPress={() => Alert.alert("Coming Soon", "Payment manager is under construction")} 
-                    />
                 </View>
 
                 {/* Settings & Support Menu */}
                 <Text style={styles.sectionTitle}>Settings & Support</Text>
                 <View style={styles.menuCard}>
-                    <MenuOption 
-                        icon="bell" 
-                        title="Notifications" 
-                        onPress={() => {}} 
-                    />
-                    <View style={styles.divider} />
                     <MenuOption 
                         icon="help-circle" 
                         title="Help & Support" 

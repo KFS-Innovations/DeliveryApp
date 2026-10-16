@@ -17,6 +17,15 @@ export default function ProductGrid({ products, isLoading }) {
 
       {isLoading ? (
         <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 20 }} />
+      ) : products && products.length === 0 ? (
+        // --- NEW: Empty State UI ---
+        <View style={styles.emptyContainer}>
+            <View style={styles.emptyIconBox}>
+                <Feather name="shopping-bag" size={32} color="#94A3B8" />
+            </View>
+            <Text style={styles.emptyTitle}>No items found</Text>
+            <Text style={styles.emptySub}>We don't have any products in this category yet. Check back later!</Text>
+        </View>
       ) : (
         <View style={styles.recommendedGrid}>
           {products.map((item) => (
@@ -90,4 +99,10 @@ const styles = StyleSheet.create({
   deliveryPriceRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'flex-end' },
   pricePill: { backgroundColor: COLORS.priceBg, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 14 },
   priceText: { color: '#FFF', fontSize: 11, fontWeight: '800' },
+
+  // --- NEW: Empty State Styles ---
+  emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 50, paddingHorizontal: 20 },
+  emptyIconBox: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textDark, marginBottom: 8 },
+  emptySub: { fontSize: 14, color: '#64748B', textAlign: 'center', lineHeight: 20 },
 });
