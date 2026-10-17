@@ -24,10 +24,9 @@ const THEME = {
     border: '#E2E8F0',
     success: '#059669',
     warning: '#F59E0B',
-    danger: '#EF4444' // Used for the cancelled state
+    danger: '#EF4444' 
 };
 
-// Standard E-Commerce Status Terminology
 const STATUS_STEPS = [
     { id: 'Placed', label: 'Order Placed', desc: 'Waiting for seller approval' },
     { id: 'Preparing', label: 'Processing Order', desc: 'The seller is packing your items' },
@@ -41,15 +40,12 @@ export default function OrderStatusScreen({ route, navigation }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Fetch immediately when the screen loads
         fetchOrderStatus();
         
-        // Auto-refresh the order status every 10 seconds
         const interval = setInterval(() => {
             fetchOrderStatus();
         }, 10000);
 
-        // Clean up the timer if the user leaves the screen
         return () => clearInterval(interval);
     }, []);
 
@@ -87,11 +83,76 @@ export default function OrderStatusScreen({ route, navigation }) {
     };
 
     const handleCallSeller = () => {
-        // Grab the seller phone from the first item in the order
         const sellerPhone = order?.items?.[0]?.productId?.sellerPhone || '+919876543210';
         Linking.openURL(`tel:${sellerPhone}`).catch(err => {
             Alert.alert("Error", "Could not open phone dialer.");
         });
+    };
+
+    // --- NEW: Cancel Order Logic ---
+    const executeCancelOrder = async () => {
+        try {
+            const token = await AsyncStorage.getItem('authToken');
+            const API_URL = process.env.EXPO_PUBLIC_IP 
+                ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/order/${orderId}/status`
+                : `http://192.168.0.107:5000/api/order/${orderId}/status`; 
+
+            const response = await fetch(API_URL, {
+                method: 'PUT',
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ orderStatus: 'Cancelled' })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setOrder(data.order); // Instantly updates UI to show cancelled card
+                Alert.alert("Order Cancelled", "Your order has been cancelled successfully.");
+            } else {
+                Alert.alert("Error", data.error || "Could not cancel order.");
+            }
+        } catch (error) {
+            console.error("Cancel Order Error:", error);
+            Alert.alert("Error", "Network error. Please try again.");
+        }
+    };
+
+    // --- NEW: Help Menu Logic ---
+    const handleHelpPress = () => {
+        // Order can only be cancelled if it's still in the very first "Placed" step
+        const canCancel = order?.orderStatus === 'Placed';
+        
+        const options = [
+            { text: "Contact Support", onPress: () => Alert.alert("Support", "Please call 1800-123-4567") },
+            { text: "Dismiss", style: "cancel" }
+        ];
+
+        // Inject the Cancel button only if allowed
+        if (canCancel) {
+            options.splice(1, 0, { 
+                text: "Cancel Order", 
+                style: "destructive", 
+                onPress: () => {
+                    Alert.alert(
+                        "Cancel Order", 
+                        "Are you sure you want to cancel this order?",
+                        [
+                            { text: "No", style: "cancel" },
+                            { text: "Yes, Cancel", style: "destructive", onPress: executeCancelOrder }
+                        ]
+                    );
+                } 
+            });
+        }
+
+        Alert.alert(
+            "Need Help?",
+            canCancel ? "What would you like to do?" : "This order is already being processed and cannot be cancelled. Contact support for help.",
+            options
+        );
     };
 
     if (loading || !order) {
@@ -106,7 +167,6 @@ export default function OrderStatusScreen({ route, navigation }) {
     const isCancelled = order.orderStatus === 'Cancelled';
     const activeStepIndex = getActiveStepIndex();
     
-    // Extract Seller Info securely
     const shopName = order?.items?.[0]?.productId?.shop || "Official Store";
     const shopPhone = order?.items?.[0]?.productId?.sellerPhone || "+91 98765 43210";
 
@@ -119,7 +179,8 @@ export default function OrderStatusScreen({ route, navigation }) {
                     <Feather name="arrow-left" size={24} color={THEME.textDark} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Order #{order._id.substring(order._id.length - 6).toUpperCase()}</Text>
-                <TouchableOpacity style={styles.helpButton}>
+                {/* --- UPDATED: Help Button Action --- */}
+                <TouchableOpacity style={styles.helpButton} onPress={handleHelpPress}>
                     <Text style={styles.helpText}>Help</Text>
                 </TouchableOpacity>
             </View>
@@ -127,23 +188,20 @@ export default function OrderStatusScreen({ route, navigation }) {
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 
                 {isCancelled ? (
-                    // --- CANCELLED STATE UI ---
                     <View style={styles.cancelledCard}>
                         <View style={styles.cancelledIconBox}>
                             <Feather name="x-circle" size={40} color={THEME.danger} />
                         </View>
                         <Text style={styles.cancelledTitle}>Order Cancelled</Text>
                         <Text style={styles.cancelledDesc}>
-                            This order was cancelled by the seller. If you made a payment, the refund will be initiated automatically.
+                            This order was cancelled. If you made a payment, the refund will be initiated automatically.
                         </Text>
                         <View style={styles.amountBadge}>
                             <Text style={styles.amountText}>Amount: ₹{order.totalAmount}</Text>
                         </View>
                     </View>
                 ) : (
-                    // --- NORMAL TIMELINE UI ---
                     <>
-                        {/* Estimated Delivery Card */}
                         <View style={styles.etaCard}>
                             <View style={styles.etaHeader}>
                                 <Feather name="clock" size={24} color={THEME.primary} />
@@ -159,7 +217,6 @@ export default function OrderStatusScreen({ route, navigation }) {
                             </View>
                         </View>
 
-                        {/* Progress Tracking Timeline */}
                         <View style={styles.card}>
                             <Text style={styles.sectionTitle}>Tracking Status</Text>
                             <View style={styles.timelineContainer}>
@@ -197,7 +254,6 @@ export default function OrderStatusScreen({ route, navigation }) {
                             </View>
                         </View>
 
-                        {/* Seller Contact Card */}
                         <View style={styles.sellerCard}>
                             <View style={styles.sellerInfo}>
                                 <View style={styles.sellerAvatar}>
@@ -214,7 +270,6 @@ export default function OrderStatusScreen({ route, navigation }) {
                             </TouchableOpacity>
                         </View>
 
-                        {/* Delivery Partner Info */}
                         {order.orderStatus !== 'Delivered' && order.deliveryPartner?.name && (
                             <View style={styles.driverCard}>
                                 <Image 
@@ -244,16 +299,13 @@ export default function OrderStatusScreen({ route, navigation }) {
                     </>
                 )}
 
-                {/* --- NEW: Items & Order Summary Section --- */}
                 <View style={[styles.card, { marginTop: 20 }]}>
                     <Text style={styles.sectionTitle}>Order Summary</Text>
                     
-                    {/* Render Products */}
                     {order.items?.map((item, index) => {
                         const product = item.productId;
-                        if (!product) return null; // Failsafe if product was deleted from DB
+                        if (!product) return null; 
                         
-                        // Calculate price per line item (handles fractional quantities like 0.5kg)
                         const lineTotal = (item.price * item.quantity).toFixed(2);
 
                         return (
@@ -270,13 +322,9 @@ export default function OrderStatusScreen({ route, navigation }) {
 
                     <View style={styles.summaryDivider} />
 
-                    {/* Receipt Breakdown */}
                     {(() => {
-                        // 1. Calculate the sum of all items in the order
                         const itemsTotal = order.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0;
                         const deliveryFee = order.totalAmount - itemsTotal;
-                        
-                        // 3. Format it safely (if it's 0 or negative due to math weirdness, show 'Free')
                         const displayDeliveryFee = deliveryFee > 0.01 ? `₹${deliveryFee.toFixed(2)}` : 'Free';
 
                         return (
@@ -323,7 +371,6 @@ const styles = StyleSheet.create({
     
     card: { backgroundColor: THEME.card, borderRadius: 16, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
     
-    // ETA Card
     etaCard: { backgroundColor: THEME.card, borderRadius: 16, padding: 24, marginBottom: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
     etaHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
     etaTitle: { fontSize: 15, fontWeight: '600', color: THEME.textMuted, marginLeft: 8 },
@@ -331,7 +378,6 @@ const styles = StyleSheet.create({
     amountBadge: { backgroundColor: '#ECFDF5', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
     amountText: { fontSize: 14, fontWeight: '700', color: THEME.primary },
     
-    // Cancelled Card
     cancelledCard: { backgroundColor: '#FEF2F2', borderRadius: 16, padding: 24, marginBottom: 20, alignItems: 'center', borderWidth: 1, borderColor: '#FECACA' },
     cancelledIconBox: { marginBottom: 16 },
     cancelledTitle: { fontSize: 20, fontWeight: '800', color: THEME.danger, marginBottom: 8 },
@@ -356,7 +402,6 @@ const styles = StyleSheet.create({
     textDark: { color: THEME.textDark },
     textMuted: { color: THEME.textMuted },
 
-    // Seller Contact Card
     sellerCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: THEME.card, padding: 16, borderRadius: 16, marginTop: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
     sellerInfo: { flexDirection: 'row', alignItems: 'center' },
     sellerAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#ECFDF5', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
@@ -365,7 +410,6 @@ const styles = StyleSheet.create({
     sellerCallBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: THEME.border },
     sellerCallText: { fontSize: 13, fontWeight: '700', color: THEME.textDark, marginLeft: 6 },
 
-    // Driver Card
     driverCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: THEME.textDark, borderRadius: 16, padding: 16, marginTop: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 },
     driverPic: { width: 54, height: 54, borderRadius: 27, marginRight: 16, borderWidth: 2, borderColor: '#334155' },
     driverInfo: { flex: 1, justifyContent: 'center' },
@@ -378,7 +422,6 @@ const styles = StyleSheet.create({
     driverPhone: { fontSize: 13, fontWeight: '600', color: '#94A3B8', marginLeft: 6, letterSpacing: 0.5 },
     callButton: { width: 46, height: 46, borderRadius: 23, backgroundColor: THEME.primary, justifyContent: 'center', alignItems: 'center' },
 
-    // --- NEW: Order Summary Styles ---
     orderItemRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
     orderItemImage: { width: 50, height: 50, borderRadius: 12, backgroundColor: '#F1F5F9', marginRight: 12 },
     orderItemDetails: { flex: 1, justifyContent: 'center' },

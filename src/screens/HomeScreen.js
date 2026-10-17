@@ -71,9 +71,10 @@ export default function HomeScreen({ navigation }) {
 
             const orderRes = await fetch(`http://${process.env.EXPO_PUBLIC_IP}:5000/api/order/history`, { headers });
             const orderData = await orderRes.json();
+            
             if (orderData.orders && orderData.orders.length > 0) {
                 const latestOrder = orderData.orders[0];
-                if (latestOrder.orderStatus !== 'Delivered') {
+                if (latestOrder.orderStatus !== 'Delivered' && latestOrder.orderStatus !== 'Cancelled') {
                     setActiveOrder(latestOrder);
                 } else {
                     setActiveOrder(null);
@@ -82,6 +83,7 @@ export default function HomeScreen({ navigation }) {
 
             const cartRes = await fetch(`http://${process.env.EXPO_PUBLIC_IP}:5000/api/cart`, { headers });
             const cartData = await cartRes.json();
+            
             if (cartData.items && cartData.items.length > 0) {
                 const total = cartData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                 setCartSummary({ count: cartData.items.length, total });
