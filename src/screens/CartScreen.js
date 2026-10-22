@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
     View, 
     Text, 
@@ -10,9 +10,10 @@ import {
     StatusBar,
     Platform
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context'; // <-- NEW IMPORT LOCATION
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native'; // <-- 1. IMPORT THIS
 
 const COLORS = {
     primary: '#10B981',
@@ -30,9 +31,12 @@ export default function CartScreen({ navigation }) {
     const [loading, setLoading] = useState(true);
     const [totalPrice, setTotalPrice] = useState(0);
 
-    useEffect(() => {
-        fetchCart();
-    }, []);
+    // --- 2. REPLACED useEffect WITH useFocusEffect ---
+    useFocusEffect(
+        useCallback(() => {
+            fetchCart();
+        }, [])
+    );
 
     const fetchCart = async () => {
         try {
@@ -202,8 +206,7 @@ export default function CartScreen({ navigation }) {
 const styles = StyleSheet.create({
     safeArea: { 
         flex: 1, 
-        backgroundColor: COLORS.background,
-        // paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 
+        backgroundColor: COLORS.background 
     },
     flexContainer: { flex: 1 },
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },

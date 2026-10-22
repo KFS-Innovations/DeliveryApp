@@ -18,7 +18,7 @@ router.put('/location', verifyToken, async (req, res) => {
           'location.address': address
         } 
       },
-      { returnDocument: 'after' } // <--- Fixed the Mongoose warning here!
+      { returnDocument: 'after' }
     );
 
     if (!updatedUser) {
@@ -32,7 +32,7 @@ router.put('/location', verifyToken, async (req, res) => {
   }
 });
 
-// --- GET DELIVERY ADDRESS ROUTE ---
+// --- GET DELIVERY ADDRESSES ROUTE ---
 // GET /api/user/address
 router.get('/address', verifyToken, async (req, res) => {
     try {
@@ -40,21 +40,30 @@ router.get('/address', verifyToken, async (req, res) => {
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
-        res.json({ address: user.deliveryAddress || "Please add a delivery address" });
+        // Return the array of addresses instead of a single string
+        res.json({ success: true, addresses: user.addresses || [] });
     } catch (error) {
         console.error("Get Address Error:", error);
-        res.status(500).json({ error: 'Failed to fetch address' });
+        res.status(500).json({ error: 'Failed to fetch addresses' });
     }
 });
 
-// --- UPDATE DELIVERY ADDRESS ROUTE ---
-// PUT /api/user/address
-router.put('/address', verifyToken, async (req, res) => {
+// --- ADD NEW DELIVERY ADDRESS ROUTE ---
+// POST /api/user/address  <-- Changed to POST since we are appending to an array
+router.post('/address', verifyToken, async (req, res) => {
     try {
-        const { address } = req.body;
+        const { houseDetails, areaDetails, landmark, fullAddress } = req.body;
+        
+        const newAddress = {
+            houseDetails,
+            areaDetails,
+            landmark,
+            fullAddress,
+        };
+
         const updatedUser = await User.findByIdAndUpdate(
             req.user.id, 
-            { $set: { deliveryAddress: address } },
+            { $push: { addresses: newAddress } }, // Use $push to add to the array
             { returnDocument: 'after' }
         );
         
@@ -62,10 +71,10 @@ router.put('/address', verifyToken, async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
         
-        res.json({ success: true, address: updatedUser.deliveryAddress });
+        res.json({ success: true, addresses: updatedUser.addresses });
     } catch (error) {
-        console.error("Update Address Error:", error);
-        res.status(500).json({ error: 'Failed to update address' });
+        console.error("Add Address Error:", error);
+        res.status(500).json({ error: 'Failed to save new address' });
     }
 });
 

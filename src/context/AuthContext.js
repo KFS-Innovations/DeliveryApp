@@ -30,9 +30,19 @@ export const AuthProvider = ({ children }) => {
       setUser(backendResponse.user);
       await AsyncStorage.setItem('userData', JSON.stringify(backendResponse.user));
       
-      // 2. THIS IS THE FIX: Explicitly save the token so ProductDetailsScreen can find it!
+      // 2. Explicitly save the token and the userId
       if (backendResponse.token) {
         await AsyncStorage.setItem('authToken', backendResponse.token);
+        
+        // Safely check for both _id (MongoDB default) and id (common backend formatting)
+        const userId = backendResponse.user._id || backendResponse.user.id;
+        
+        if (userId) {
+            // Convert to string just in case, as AsyncStorage requires string values
+            await AsyncStorage.setItem('userId', String(userId)); 
+        } else {
+            console.error("⚠️ Login successful, but no ID found in backend response.");
+        }
       }
     } catch (error) {
       console.error("Failed to save user data", error);
@@ -46,6 +56,7 @@ export const AuthProvider = ({ children }) => {
       // Remove BOTH keys when logging out
       await AsyncStorage.removeItem('userData');
       await AsyncStorage.removeItem('authToken');
+      await AsyncStorage.removeItem('userId'); 
     } catch (error) {
       console.error("Failed to clear user data", error);
     }

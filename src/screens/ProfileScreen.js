@@ -5,14 +5,13 @@ import {
     StyleSheet, 
     TouchableOpacity, 
     ScrollView, 
-    Image,
     StatusBar,
     Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AuthContext } from '../context/AuthContext'; // Adjust path if needed
+import { AuthContext } from '../context/AuthContext';
 
 const THEME = {
     primary: '#10B981',
@@ -38,9 +37,7 @@ export default function ProfileScreen({ navigation }) {
                     style: "destructive",
                     onPress: async () => {
                         try {
-                            // 1. Clear the token from storage
                             await AsyncStorage.removeItem('authToken');
-
                             if (logout) {
                                 logout();
                             }
@@ -58,7 +55,6 @@ export default function ProfileScreen({ navigation }) {
         );
     };
 
-    // Reusable component for the menu rows
     const MenuOption = ({ icon, title, subtitle, onPress, color = THEME.textDark }) => (
         <TouchableOpacity style={styles.menuOption} onPress={onPress}>
             <View style={[styles.menuIconBox, { backgroundColor: color === THEME.danger ? '#FEF2F2' : '#F1F5F9' }]}>
@@ -72,11 +68,13 @@ export default function ProfileScreen({ navigation }) {
         </TouchableOpacity>
     );
 
+    // Extract the first letter of the user's name for the avatar placeholder
+    const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : 'G';
+
     return (
         <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle="dark-content" backgroundColor={THEME.background} />
             
-            {/* Header */}
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>My Profile</Text>
                 <TouchableOpacity style={styles.editButton}>
@@ -86,14 +84,13 @@ export default function ProfileScreen({ navigation }) {
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 
-                {/* User Info Card */}
                 <View style={styles.profileCard}>
-                    <Image 
-                        source={{ uri: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80' }} 
-                        style={styles.avatar} 
-                    />
+                    {/* Replaced Image with an Initial Placeholder */}
+                    <View style={styles.avatarPlaceholder}>
+                        <Text style={styles.avatarText}>{userInitial}</Text>
+                    </View>
+                    
                     <View style={styles.profileInfo}>
-                        {/* Removed the extra .user nesting */}
                         <Text style={styles.userName}>{user?.name || 'Guest User'}</Text>
                         <Text style={styles.userEmail}>{user?.email || 'guest@example.com'}</Text>
                         <View style={styles.badge}>
@@ -102,7 +99,6 @@ export default function ProfileScreen({ navigation }) {
                     </View>
                 </View>
 
-                {/* Dashboard Menu */}
                 <Text style={styles.sectionTitle}>Dashboard</Text>
                 <View style={styles.menuCard}>
                     <MenuOption 
@@ -120,7 +116,6 @@ export default function ProfileScreen({ navigation }) {
                     />
                 </View>
 
-                {/* Settings & Support Menu */}
                 <Text style={styles.sectionTitle}>Settings & Support</Text>
                 <View style={styles.menuCard}>
                     <MenuOption 
@@ -147,23 +142,24 @@ export default function ProfileScreen({ navigation }) {
 const styles = StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: THEME.background },
     
-    // Header
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16, backgroundColor: THEME.background },
     headerTitle: { fontSize: 22, fontWeight: '800', color: THEME.textDark },
     editButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ECFDF5', justifyContent: 'center', alignItems: 'center' },
     
     scrollContent: { padding: 20, paddingBottom: 100 },
     
-    // Profile Card
     profileCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: THEME.card, borderRadius: 20, padding: 20, marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
-    avatar: { width: 70, height: 70, borderRadius: 35, marginRight: 16 },
+    
+    // New Avatar Placeholder Styles
+    avatarPlaceholder: { width: 64, height: 64, borderRadius: 32, backgroundColor: THEME.primary, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+    avatarText: { fontSize: 28, fontWeight: '800', color: '#FFFFFF' },
+    
     profileInfo: { flex: 1 },
     userName: { fontSize: 18, fontWeight: '700', color: THEME.textDark, marginBottom: 4 },
     userEmail: { fontSize: 14, color: THEME.textMuted, marginBottom: 8 },
     badge: { alignSelf: 'flex-start', backgroundColor: '#ECFDF5', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
     badgeText: { fontSize: 12, fontWeight: '700', color: THEME.primary },
     
-    // Menu Sections
     sectionTitle: { fontSize: 16, fontWeight: '700', color: THEME.textDark, marginBottom: 12, marginLeft: 4 },
     menuCard: { backgroundColor: THEME.card, borderRadius: 20, paddingVertical: 8, marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
     menuOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16 },
@@ -173,10 +169,5 @@ const styles = StyleSheet.create({
     menuSubtitle: { fontSize: 13, color: THEME.textMuted },
     divider: { height: 1, backgroundColor: THEME.border, marginHorizontal: 16 },
     
-    versionText: { textAlign: 'center', fontSize: 13, color: THEME.textMuted, marginTop: 10, marginBottom: 20 },
-    
-    // Bottom Navigation
-    bottomNav: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 12, paddingBottom: 20, borderTopWidth: 1, borderTopColor: THEME.border, backgroundColor: THEME.card },
-    navItem: { alignItems: 'center' },
-    navText: { fontSize: 10, fontWeight: '600', color: THEME.textMuted, marginTop: 4 }
+    versionText: { textAlign: 'center', fontSize: 13, color: THEME.textMuted, marginTop: 10, marginBottom: 20 }
 });

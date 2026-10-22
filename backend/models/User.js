@@ -10,7 +10,15 @@ const UserSchema = new mongoose.Schema({
     longitude: { type: Number },
     address: { type: String }
   },
-  deliveryAddress: { type: String, default: "" },
+  addresses: [
+    {
+      houseDetails: { type: String, required: true },
+      areaDetails: { type: String, required: true },
+      landmark: { type: String, default: "" },
+      fullAddress: { type: String, required: true },
+      isDefault: { type: Boolean, default: false }
+    }
+  ]
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', UserSchema, 'Users');
