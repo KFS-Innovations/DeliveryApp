@@ -14,6 +14,7 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import { AuthProvider } from './src/context/AuthContext';
 import OrderStatusScreen from './src/screens/OrderStatusScreen';
 import OrdersScreen from './src/screens/OrdersScreen';
+import SavedAddressesScreen from './src/screens/SavedAddressesScreen';
 
 import { TouchableOpacity } from 'react-native';
 const Stack = createNativeStackNavigator();
@@ -82,6 +83,7 @@ export default function App() {
           <Stack.Screen name="Checkout" component={CheckoutScreen} />
           <Stack.Screen name="OrderStatus" component={OrderStatusScreen} />
           <Stack.Screen name="Orders" component={OrdersScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="SavedAddresses" component={SavedAddressesScreen} options={{ headerShown: false }} />
         </Stack.Navigator>
       </NavigationContainer>
     </AuthProvider>

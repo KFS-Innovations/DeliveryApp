@@ -112,7 +112,7 @@ export default function ProfileScreen({ navigation }) {
                         icon="map-pin" 
                         title="Delivery Addresses" 
                         subtitle="Manage saved addresses" 
-                        onPress={() => Alert.alert("Coming Soon", "Address manager is under construction")} 
+                        onPress={() => navigation.navigate('SavedAddresses')}
                     />
                 </View>
 

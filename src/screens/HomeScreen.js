@@ -62,6 +62,7 @@ export default function HomeScreen({ navigation }) {
     useFocusEffect(
         useCallback(() => {
             fetchActiveCartAndOrders();
+            fetchSavedAddress();
         }, [])
     );
 

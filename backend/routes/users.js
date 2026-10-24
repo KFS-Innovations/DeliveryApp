@@ -40,7 +40,6 @@ router.get('/address', verifyToken, async (req, res) => {
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
-        // Return the array of addresses instead of a single string
         res.json({ success: true, addresses: user.addresses || [] });
     } catch (error) {
         console.error("Get Address Error:", error);
@@ -49,7 +48,7 @@ router.get('/address', verifyToken, async (req, res) => {
 });
 
 // --- ADD NEW DELIVERY ADDRESS ROUTE ---
-// POST /api/user/address  <-- Changed to POST since we are appending to an array
+// POST /api/user/address  
 router.post('/address', verifyToken, async (req, res) => {
     try {
         const { houseDetails, areaDetails, landmark, fullAddress } = req.body;
@@ -63,7 +62,7 @@ router.post('/address', verifyToken, async (req, res) => {
 
         const updatedUser = await User.findByIdAndUpdate(
             req.user.id, 
-            { $push: { addresses: newAddress } }, // Use $push to add to the array
+            { $push: { addresses: newAddress } }, 
             { returnDocument: 'after' }
         );
         
@@ -75,6 +74,62 @@ router.post('/address', verifyToken, async (req, res) => {
     } catch (error) {
         console.error("Add Address Error:", error);
         res.status(500).json({ error: 'Failed to save new address' });
+    }
+});
+
+// --- EDIT/UPDATE DELIVERY ADDRESS ROUTE ---
+// PUT /api/user/address/:addressId
+router.put('/address/:addressId', verifyToken, async (req, res) => {
+    try {
+        const { houseDetails, areaDetails, landmark, fullAddress } = req.body;
+        const { addressId } = req.params;
+
+        // Use the positional operator ($) to update the specific address inside the array
+        const updatedUser = await User.findOneAndUpdate(
+            { _id: req.user.id, "addresses._id": addressId },
+            { 
+                $set: { 
+                    "addresses.$.houseDetails": houseDetails,
+                    "addresses.$.areaDetails": areaDetails,
+                    "addresses.$.landmark": landmark,
+                    "addresses.$.fullAddress": fullAddress
+                } 
+            },
+            { returnDocument: 'after' }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ success: false, message: "User or Address not found" });
+        }
+
+        res.json({ success: true, addresses: updatedUser.addresses });
+    } catch (error) {
+        console.error("Update Address Error:", error);
+        res.status(500).json({ success: false, error: 'Failed to update address' });
+    }
+});
+
+// --- DELETE DELIVERY ADDRESS ROUTE ---
+// DELETE /api/user/address/:addressId
+router.delete('/address/:addressId', verifyToken, async (req, res) => {
+    try {
+        const { addressId } = req.params;
+
+        // Use $pull to remove the address object with the matching _id from the array
+        const updatedUser = await User.findByIdAndUpdate(
+            req.user.id,
+            { $pull: { addresses: { _id: addressId } } },
+            { returnDocument: 'after' }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        res.json({ success: true, addresses: updatedUser.addresses });
+    } catch (error) {
+        console.error("Delete Address Error:", error);
+        res.status(500).json({ success: false, error: 'Failed to delete address' });
     }
 });
 
