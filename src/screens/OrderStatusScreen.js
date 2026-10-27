@@ -59,6 +59,7 @@ export default function OrderStatusScreen({ route, navigation }) {
             const response = await fetch(API_URL, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+            console.log(token)
             const data = await response.json();
 
             if (data.success) {
@@ -105,7 +106,6 @@ export default function OrderStatusScreen({ route, navigation }) {
                 },
                 body: JSON.stringify({ orderStatus: 'Cancelled' })
             });
-
             const data = await response.json();
 
             if (data.success) {
@@ -270,7 +270,7 @@ export default function OrderStatusScreen({ route, navigation }) {
                             </TouchableOpacity>
                         </View>
 
-                        {order.orderStatus !== 'Delivered' && order.deliveryPartner?.name && (
+                        {order.deliveryPartner?.name && (
                             <View style={styles.driverCard}>
                                 <Image 
                                     source={{ uri: 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=200&q=80' }} 

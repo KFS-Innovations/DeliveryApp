@@ -15,6 +15,7 @@ import { AuthProvider } from './src/context/AuthContext';
 import OrderStatusScreen from './src/screens/OrderStatusScreen';
 import OrdersScreen from './src/screens/OrdersScreen';
 import SavedAddressesScreen from './src/screens/SavedAddressesScreen';
+import HelpCenterScreen from './src/screens/HelpCenterScreen';
 
 import { TouchableOpacity } from 'react-native';
 const Stack = createNativeStackNavigator();
@@ -84,6 +85,7 @@ export default function App() {
           <Stack.Screen name="OrderStatus" component={OrderStatusScreen} />
           <Stack.Screen name="Orders" component={OrdersScreen} options={{ headerShown: false }} />
           <Stack.Screen name="SavedAddresses" component={SavedAddressesScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </AuthProvider>

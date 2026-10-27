@@ -121,7 +121,7 @@ export default function ProfileScreen({ navigation }) {
                     <MenuOption 
                         icon="help-circle" 
                         title="Help & Support" 
-                        onPress={() => {}} 
+                        onPress={() => { navigation.navigate('HelpCenter')}} 
                     />
                     <View style={styles.divider} />
                     <MenuOption 
