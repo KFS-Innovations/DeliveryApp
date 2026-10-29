@@ -59,7 +59,6 @@ export default function OrderStatusScreen({ route, navigation }) {
             const response = await fetch(API_URL, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            console.log(token)
             const data = await response.json();
 
             if (data.success) {

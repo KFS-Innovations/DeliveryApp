@@ -18,28 +18,30 @@ import { Feather } from '@expo/vector-icons';
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 
-// NEW: Local Dark Theme Colors
+// NEW: "Farm & Sea" Premium Fresh Market Theme
 const THEME = {
-  background: '#F8FAFC',   // Soft, clean off-white for the main background
-  surface: '#FFFFFF',      // Pure white for inputs and toggles to pop
-  surfaceActive: '#E2E8F0', // Light slate for the active toggle button
-  textPrimary: '#0F172A',  // Deep slate/near-black for highly readable text
-  textMuted: '#64748B',    // Medium gray for placeholders and icons
-  primary: '#10B981',      // Vibrant Emerald Green (unchanged)
-  border: '#E2E8F0',       // Subtle light gray border
+  background: '#FFFFFF',   // Crisp clean white
+  surface: '#F8FAFC',      // Very light slate for inputs
+  surfaceActive: '#FEF2F2', // Light coral/red tint for active states
+  textPrimary: '#0F172A',  // Deep navy/slate for text
+  textMuted: '#64748B',    // Medium slate for placeholders
+  primary: '#E11D48',      // Vibrant Crimson (Appetizing for meat/fresh food)
+  border: '#E2E8F0',       // Soft border
+  accent: '#0EA5E9',       // Ocean Blue accent for fish/seafood vibes
 };
 
 export default function AuthScreen({ navigation }) {
   const [isLogin, setIsLogin] = useState(true);
   const { login } = useContext(AuthContext);
-  // Form State
+  
+  // Form State (Logic Unchanged)
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   
-  // Loading State
+  // Loading State (Logic Unchanged)
   const [isLoading, setIsLoading] = useState(false);
 
   const toggleAuthMode = (mode) => {
@@ -97,8 +99,7 @@ export default function AuthScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Changed StatusBar to light-content for Dark Mode */}
-      <StatusBar barStyle="light-content" backgroundColor={THEME.background} />
+      <StatusBar barStyle="dark-content" backgroundColor={THEME.background} />
       
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -106,26 +107,43 @@ export default function AuthScreen({ navigation }) {
       >
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           
+          {/* Brand Visuals */}
+          <View style={styles.brandContainer}>
+            <View style={styles.iconRow}>
+              <View style={[styles.iconCircle, { backgroundColor: '#FEF2F2' }]}>
+                <Feather name="box" size={24} color={THEME.primary} />
+              </View>
+              <View style={[styles.iconCircle, { backgroundColor: '#F0F9FF', marginHorizontal: -10, zIndex: 1, borderWidth: 3, borderColor: THEME.background }]}>
+                <Feather name="anchor" size={24} color={THEME.accent} />
+              </View>
+              <View style={[styles.iconCircle, { backgroundColor: '#FEFCE8', borderWidth: 3, borderColor: THEME.background }]}>
+                <Feather name="sun" size={24} color="#D97706" />
+              </View>
+            </View>
+            {/* <Text style={styles.brandTags}>MEAT • FISH • PURE OILS</Text> */}
+          </View>
+
           {/* Dynamic Header */}
           <View style={styles.headerContainer}>
             <Text style={styles.title}>
-              {isLogin ? 'Welcome Back!' : 'Create Account'}
+              {isLogin ? 'Welcome Back' : 'Freshness Delivered'}
             </Text>
             <Text style={styles.subtitle}>
               {isLogin 
-                ? 'Sign in to continue your journey.' 
-                : 'Join us and get your groceries delivered fast.'}
-            </Text>
+                ? 'Sign in to order premium cuts and fresh catch.' 
+                : 'Join us for farm-fresh meat, seafood, and pure coconut oil.'}
+  
+             </Text>
           </View>
 
-          {/* Modern Toggle Switch */}
+          {/* Pill-shaped Segmented Toggle */}
           <View style={styles.toggleContainer}>
             <TouchableOpacity 
               style={[styles.toggleButton, isLogin && styles.activeToggleButton]} 
               onPress={() => toggleAuthMode(true)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.toggleText, isLogin && styles.activeToggleText]}>Log In</Text>
+              <Text style={[styles.toggleText, isLogin && styles.activeToggleText]}>Login</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -133,7 +151,7 @@ export default function AuthScreen({ navigation }) {
               onPress={() => toggleAuthMode(false)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.toggleText, !isLogin && styles.activeToggleText]}>Sign Up</Text>
+              <Text style={[styles.toggleText, !isLogin && styles.activeToggleText]}>Register</Text>
             </TouchableOpacity>
           </View>
 
@@ -144,10 +162,10 @@ export default function AuthScreen({ navigation }) {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Full Name</Text>
                 <View style={styles.inputWrapper}>
-                  <Feather name="user" size={20} color={THEME.textMuted} style={styles.inputIcon} />
+                  <Feather name="user" size={18} color={THEME.textMuted} style={styles.inputIcon} />
                   <TextInput 
                     style={styles.input}
-                    placeholder="John Doe"
+                    placeholder="Enter your name"
                     placeholderTextColor={THEME.textMuted}
                     value={name}
                     onChangeText={setName}
@@ -160,7 +178,7 @@ export default function AuthScreen({ navigation }) {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Email Address</Text>
               <View style={styles.inputWrapper}>
-                <Feather name="mail" size={20} color={THEME.textMuted} style={styles.inputIcon} />
+                <Feather name="mail" size={18} color={THEME.textMuted} style={styles.inputIcon} />
                 <TextInput 
                   style={styles.input}
                   placeholder="hello@example.com"
@@ -178,10 +196,10 @@ export default function AuthScreen({ navigation }) {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Phone Number</Text>
                 <View style={styles.inputWrapper}>
-                  <Feather name="phone" size={20} color={THEME.textMuted} style={styles.inputIcon} />
+                  <Feather name="phone" size={18} color={THEME.textMuted} style={styles.inputIcon} />
                   <TextInput 
                     style={styles.input}
-                    placeholder="+1 234 567 8900"
+                    placeholder="+91 98765 43210"
                     placeholderTextColor={THEME.textMuted}
                     keyboardType="phone-pad"
                     value={phone}
@@ -195,7 +213,7 @@ export default function AuthScreen({ navigation }) {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Password</Text>
               <View style={styles.inputWrapper}>
-                <Feather name="lock" size={20} color={THEME.textMuted} style={styles.inputIcon} />
+                <Feather name="lock" size={18} color={THEME.textMuted} style={styles.inputIcon} />
                 <TextInput 
                   style={styles.input}
                   placeholder={isLogin ? "••••••••" : "Create a strong password"}
@@ -205,7 +223,7 @@ export default function AuthScreen({ navigation }) {
                   onChangeText={setPassword}
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                  <Feather name={showPassword ? "eye" : "eye-off"} size={20} color={THEME.textMuted} />
+                  <Feather name={showPassword ? "eye" : "eye-off"} size={18} color={THEME.textMuted} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -219,15 +237,16 @@ export default function AuthScreen({ navigation }) {
 
             {/* Submit Button */}
             <TouchableOpacity 
-              style={[styles.primaryButton, !isLogin && { marginTop: 10 }]} 
+              style={[styles.primaryButton, !isLogin && { marginTop: 12 }]} 
               onPress={handleSubmit}
               disabled={isLoading}
+              activeOpacity={0.9}
             >
               {isLoading ? (
-                <ActivityIndicator color="#FFF" />
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Text style={styles.primaryButtonText}>
-                  {isLogin ? 'Log In' : 'Sign Up'}
+                  {isLogin ? 'Log In to Order' : 'Create Account'}
                 </Text>
               )}
             </TouchableOpacity>
@@ -242,77 +261,82 @@ export default function AuthScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: THEME.background },
   flexContainer: { flex: 1 },
-  scrollContent: { flexGrow: 1, paddingHorizontal: 24, justifyContent: 'center', paddingVertical: 40 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 24, justifyContent: 'center', paddingVertical: 24 },
   
-  headerContainer: { marginBottom: 30 },
-  title: { fontSize: 32, fontWeight: '800', color: THEME.textPrimary, marginBottom: 8, letterSpacing: -0.5 },
-  subtitle: { fontSize: 16, color: THEME.textMuted, fontWeight: '400', lineHeight: 22 },
+  brandContainer: { alignItems: 'center', marginBottom: 28, marginTop: 10 },
+  iconRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  iconCircle: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center' },
+  // brandTags: { fontSize: 12, fontWeight: '700', color: THEME.textPrimary, letterSpacing: 1.5 },
+  
+  headerContainer: { marginBottom: 32, alignItems: 'center' },
+  title: { fontSize: 26, fontWeight: '800', color: THEME.textPrimary, marginBottom: 8, letterSpacing: -0.5 },
+  subtitle: { fontSize: 14, color: THEME.textMuted, fontWeight: '500', lineHeight: 22, textAlign: 'center', paddingHorizontal: 16 },
   
   toggleContainer: {
     flexDirection: 'row',
     backgroundColor: THEME.surface,
-    borderRadius: 20,
-    padding: 6,
-    marginBottom: 30,
+    borderRadius: 30,
+    padding: 4,
+    marginBottom: 32,
     borderWidth: 1,
     borderColor: THEME.border,
   },
   toggleButton: {
     flex: 1,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
+    borderRadius: 26,
   },
   activeToggleButton: {
-    backgroundColor: THEME.surfaceActive,
+    backgroundColor: THEME.background,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   toggleText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: THEME.textMuted,
   },
   activeToggleText: {
-    color: THEME.textPrimary,
-    fontWeight: '800',
+    color: '#10B981',
+    fontWeight: '700',
   },
 
-  formContainer: { marginBottom: 30 },
-  inputGroup: { marginBottom: 22 },
-  label: { fontSize: 13, fontWeight: '700', color: THEME.textPrimary, marginBottom: 10, marginLeft: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  formContainer: { marginBottom: 20 },
+  inputGroup: { marginBottom: 18 },
+  label: { fontSize: 13, fontWeight: '600', color: THEME.textPrimary, marginBottom: 8, marginLeft: 4 },
   inputWrapper: { 
     flexDirection: 'row', 
     alignItems: 'center', 
     backgroundColor: THEME.surface, 
     borderRadius: 16, 
-    paddingHorizontal: 18, 
-    height: 60, 
+    paddingHorizontal: 16, 
+    height: 56, 
     borderWidth: 1, 
-    borderColor: THEME.border 
+    borderColor: THEME.surface,
   },
-  inputIcon: { marginRight: 14 },
-  input: { flex: 1, fontSize: 16, color: THEME.textPrimary, fontWeight: '500' },
-  eyeIcon: { padding: 4 },
+  inputIcon: { marginRight: 12 },
+  input: { flex: 1, fontSize: 15, color: THEME.textPrimary, fontWeight: '500' },
+  eyeIcon: { padding: 8 },
   
-  forgotPassword: { alignSelf: 'flex-end', marginBottom: 30 },
-  forgotPasswordText: { fontSize: 14, fontWeight: '700', color: THEME.primary },
+  forgotPassword: { alignSelf: 'flex-end', marginBottom: 24, marginTop: -4 },
+  forgotPasswordText: { fontSize: 13, fontWeight: '700', color: '#10B981' },
   
   primaryButton: { 
-    backgroundColor: THEME.primary, 
+    backgroundColor: '#10B981', 
     borderRadius: 16, 
-    height: 60, 
+    height: 56, 
     justifyContent: 'center', 
     alignItems: 'center', 
     shadowColor: THEME.primary, 
-    shadowOffset: { width: 0, height: 6 }, 
+    shadowOffset: { width: 0, height: 4 }, 
     shadowOpacity: 0.3, 
-    shadowRadius: 10, 
-    elevation: 6 
+    shadowRadius: 8, 
+    elevation: 5 
   },
-  primaryButtonText: { color: THEME.background, fontSize: 17, fontWeight: '900', letterSpacing: 0.5 },
+  primaryButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
 });
