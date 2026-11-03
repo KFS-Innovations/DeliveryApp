@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthContext } from '../context/AuthContext';
+import { LEGAL_PAGES } from '../constants/legalData'; // Ensure this file exists!
 
 const THEME = {
     primary: '#10B981',
@@ -68,7 +69,6 @@ export default function ProfileScreen({ navigation }) {
         </TouchableOpacity>
     );
 
-    // Extract the first letter of the user's name for the avatar placeholder
     const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : 'G';
 
     return (
@@ -85,7 +85,6 @@ export default function ProfileScreen({ navigation }) {
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 
                 <View style={styles.profileCard}>
-                    {/* Replaced Image with an Initial Placeholder */}
                     <View style={styles.avatarPlaceholder}>
                         <Text style={styles.avatarText}>{userInitial}</Text>
                     </View>
@@ -114,16 +113,50 @@ export default function ProfileScreen({ navigation }) {
                         subtitle="Manage saved addresses" 
                         onPress={() => navigation.navigate('SavedAddresses')}
                     />
-                </View>
-
-                <Text style={styles.sectionTitle}>Settings & Support</Text>
-                <View style={styles.menuCard}>
+                    <View style={styles.divider} />
                     <MenuOption 
                         icon="help-circle" 
                         title="Help & Support" 
                         onPress={() => { navigation.navigate('HelpCenter')}} 
                     />
+                </View>
+
+                {/* --- NEW: Legal & Policies Section --- */}
+                <Text style={styles.sectionTitle}>Legal & Policies</Text>
+                <View style={styles.menuCard}>
+                    <MenuOption 
+                        icon="headphones" 
+                        title="Contact Us" 
+                        onPress={() => navigation.navigate('Policy', { pageData: LEGAL_PAGES.contact })} 
+                    />
                     <View style={styles.divider} />
+                    <MenuOption 
+                        icon="file-text" 
+                        title="Terms & Conditions" 
+                        onPress={() => navigation.navigate('Policy', { pageData: LEGAL_PAGES.terms })} 
+                    />
+                    <View style={styles.divider} />
+                    <MenuOption 
+                        icon="shield" 
+                        title="Privacy Policy" 
+                        onPress={() => navigation.navigate('Policy', { pageData: LEGAL_PAGES.privacy })} 
+                    />
+                    <View style={styles.divider} />
+                    <MenuOption 
+                        icon="refresh-ccw" 
+                        title="Cancellation & Refunds" 
+                        onPress={() => navigation.navigate('Policy', { pageData: LEGAL_PAGES.refunds })} 
+                    />
+                    <View style={styles.divider} />
+                    <MenuOption 
+                        icon="truck" 
+                        title="Shipping & Delivery" 
+                        onPress={() => navigation.navigate('Policy', { pageData: LEGAL_PAGES.shipping })} 
+                    />
+                </View>
+
+                <Text style={styles.sectionTitle}>Account</Text>
+                <View style={styles.menuCard}>
                     <MenuOption 
                         icon="log-out" 
                         title="Log Out" 
@@ -150,7 +183,6 @@ const styles = StyleSheet.create({
     
     profileCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: THEME.card, borderRadius: 20, padding: 20, marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
     
-    // New Avatar Placeholder Styles
     avatarPlaceholder: { width: 64, height: 64, borderRadius: 32, backgroundColor: THEME.primary, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
     avatarText: { fontSize: 28, fontWeight: '800', color: '#FFFFFF' },
     

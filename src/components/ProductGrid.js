@@ -40,9 +40,9 @@ export default function ProductGrid({ products, isLoading }) {
               <View style={styles.imageContainer}>
                 <Image source={{ uri: item.image }} style={styles.gridImage} />
                 
-                <TouchableOpacity style={styles.heartBadge}>
+                {/* <TouchableOpacity style={styles.heartBadge}>
                   <Ionicons name={item.isFavorite ? "heart" : "heart-outline"} size={16} color={item.isFavorite ? COLORS.heartIcon : COLORS.textMuted} />
-                </TouchableOpacity>
+                </TouchableOpacity> */}
 
                 <View style={styles.timeBadge}>
                   <Feather name="clock" size={10} color={COLORS.textDark} style={{ marginRight: 4 }} />

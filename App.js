@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { TouchableOpacity } from 'react-native';
 
 import AuthScreen from './src/screens/AuthScreen';
 import HomeScreen from './src/screens/HomeScreen';
@@ -16,15 +17,16 @@ import OrderStatusScreen from './src/screens/OrderStatusScreen';
 import OrdersScreen from './src/screens/OrdersScreen';
 import SavedAddressesScreen from './src/screens/SavedAddressesScreen';
 import HelpCenterScreen from './src/screens/HelpCenterScreen';
+// --- NEW: Import PolicyScreen ---
+import PolicyScreen from './src/screens/PolicyScreen'; 
 
-import { TouchableOpacity } from 'react-native';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 // --- NEW: Bottom Tab Navigator ---
 function MainTabs() {
   return (
-<Tab.Navigator
+    <Tab.Navigator
       screenOptions={({ route }) => ({ 
         headerShown: false,
         tabBarActiveTintColor: '#10B981',
@@ -86,6 +88,8 @@ export default function App() {
           <Stack.Screen name="Orders" component={OrdersScreen} options={{ headerShown: false }} />
           <Stack.Screen name="SavedAddresses" component={SavedAddressesScreen} options={{ headerShown: false }} />
           <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
+          <Stack.Screen name="Policy" component={PolicyScreen} />
+          
         </Stack.Navigator>
       </NavigationContainer>
     </AuthProvider>
