@@ -10,7 +10,8 @@ import {
   StatusBar,
   Dimensions,
   Alert,
-  Linking
+  Linking,
+  Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -42,6 +43,10 @@ export default function ProductDetailsScreen({ route, navigation }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   
+  // --- NEW: Custom Error Modal State ---
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  
   // Initialize quantity and rules based on the product's category
   const unitConfig = getUnitConfig(product.category);
   const [quantity, setQuantity] = useState(unitConfig.min);
@@ -53,11 +58,16 @@ export default function ProductDetailsScreen({ route, navigation }) {
         : 'http://192.168.0.107:5000/api/products';
 
       try {
-        const response = await fetch(API_URL);
+        const token = await AsyncStorage.getItem('authToken');
+        const response = await fetch(API_URL, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
         const data = await response.json();
         
-        const filteredData = data.filter(item => item._id !== product._id);
-        setOtherProducts(filteredData.slice(0, 8)); 
+        if (Array.isArray(data)) {
+            const filteredData = data.filter(item => item._id !== product._id);
+            setOtherProducts(filteredData.slice(0, 8)); 
+        }
       } catch (error) {
         console.error("Error fetching other products:", error);
       } finally {
@@ -68,18 +78,14 @@ export default function ProductDetailsScreen({ route, navigation }) {
     fetchOtherProducts();
   }, [product]);
 
-  // Updated increment/decrement logic using category steps (e.g., +0.5kg or +1pc)
   const increment = () => setQuantity(prev => prev + unitConfig.step);
   const decrement = () => setQuantity(prev => (prev > unitConfig.min ? prev - unitConfig.step : unitConfig.min));
 
-  // Extract numerical value from price string (e.g. "₹60" -> 60) for total calculation
   const numericPrice = parseFloat(product.price.replace(/[^0-9.]/g, '')) || 0;
   const currencySymbol = product.price.replace(/[0-9.]/g, '') || '₹';
-  
-  // Total price automatically handles fractional quantities (e.g., ₹100 * 0.5kg = ₹50)
   const totalPrice = (numericPrice * quantity).toFixed(2);
 
-  const handleAddToCart = async () => {
+const handleAddToCart = async () => {
     setIsAddingToCart(true);
     try {
       const token = await AsyncStorage.getItem('authToken');
@@ -95,19 +101,33 @@ export default function ProductDetailsScreen({ route, navigation }) {
         },
         body: JSON.stringify({
           productId: product._id,
-          quantity: quantity, // Sends the correct float/integer to the backend
+          quantity: quantity,
         })
       });
 
-      if (response.ok) {
-        navigation.navigate('Cart');
-      } else {
-        const errorData = await response.json(); 
-        Alert.alert("Backend Error", errorData.error || "Could not add item.");
+      const data = await response.json();
+
+      // Catch the 15km logic (where success is explicitly false)
+      if (data.success === false) {
+          setErrorMessage(data.error || "Delivery unavailable for this item.");
+          setShowErrorModal(true); // Triggers the beautiful UI Modal
+          return;
       }
+
+      // Catch any OTHER backend issues (like missing tokens or server crashes)
+      if (!response.ok) {
+          setErrorMessage(data.error || "Could not add item to cart.");
+          setShowErrorModal(true); // Triggers the beautiful UI Modal
+          return;
+      }
+
+      // If it passes all checks, navigate to Cart!
+      navigation.navigate('Cart');
+
     } catch (error) {
       console.error("Fetch Error:", error);
-      Alert.alert("Network Error", "Could not connect to the server.");
+      setErrorMessage("Network Error. Could not connect to the server.");
+      setShowErrorModal(true);
     } finally {
       setIsAddingToCart(false);
     }
@@ -140,7 +160,6 @@ export default function ProductDetailsScreen({ route, navigation }) {
           <Image source={{ uri: product.image }} style={styles.productImage} />
         </View>
 
-        {/* Title and Inline Quantity */}
         <View style={styles.titleArea}>
           <View style={styles.titleColumn}>
             <Text style={styles.productName}>{product.name}</Text>
@@ -152,7 +171,6 @@ export default function ProductDetailsScreen({ route, navigation }) {
               <Feather name="minus" size={18} color={COLORS.textDark} />
             </TouchableOpacity>
             
-            {/* Displaying the category-specific unit next to the quantity */}
             <Text style={styles.qtyText}>{quantity} {unitConfig.unit}</Text>
             
             <TouchableOpacity onPress={increment} style={styles.qtyBtn}>
@@ -161,7 +179,6 @@ export default function ProductDetailsScreen({ route, navigation }) {
           </View>
         </View>
 
-        {/* Vertical Info Cards */}
         <View style={styles.infoGrid}>
           <View style={styles.infoCard}>
             <View style={[styles.iconCircle, { backgroundColor: '#FEF3C7' }]}>
@@ -190,7 +207,6 @@ export default function ProductDetailsScreen({ route, navigation }) {
 
         <View style={styles.divider} />
 
-        {/* Description */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About this item</Text>
           <Text style={styles.descriptionText}>
@@ -198,7 +214,6 @@ export default function ProductDetailsScreen({ route, navigation }) {
           </Text>
         </View>
 
-        {/* Seller Contact Card */}
         <View style={styles.sellerCard}>
           <View style={styles.sellerInfo}>
             <View style={styles.sellerAvatar}>
@@ -215,7 +230,6 @@ export default function ProductDetailsScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Related Items */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Frequently bought together</Text>
           
@@ -243,7 +257,6 @@ export default function ProductDetailsScreen({ route, navigation }) {
 
       </ScrollView>
 
-      {/* Sticky Bottom Bar */}
       <View style={styles.bottomBar}>
         <View style={styles.priceContainer}>
           <Text style={styles.priceLabel}>Total Price</Text>
@@ -265,6 +278,22 @@ export default function ProductDetailsScreen({ route, navigation }) {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* --- NEW: Custom Error Modal UI --- */}
+      <Modal visible={showErrorModal} transparent={true} animationType="fade">
+        <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+                <View style={styles.modalIcon}>
+                    <Feather name="map-pin" size={28} color="#EF4444" />
+                </View>
+                <Text style={styles.modalTitle}>Notice</Text>
+                <Text style={styles.modalText}>{errorMessage}</Text>
+                <TouchableOpacity style={styles.modalBtn} onPress={() => setShowErrorModal(false)}>
+                    <Text style={styles.modalBtnText}>Got it</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -287,7 +316,6 @@ const styles = StyleSheet.create({
   
   qtyBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', borderRadius: 20, padding: 4 },
   qtyBtn: { padding: 12, backgroundColor: '#FFF', borderRadius: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
-  // Reduced paddingHorizontal slightly to accommodate the added unit string (e.g., 'kg')
   qtyText: { fontSize: 15, fontWeight: '700', color: COLORS.textDark, paddingHorizontal: 12, minWidth: 50, textAlign: 'center' },
   
   infoGrid: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 24, marginBottom: 30 },
@@ -322,5 +350,14 @@ const styles = StyleSheet.create({
   priceLabel: { fontSize: 13, color: COLORS.textMuted, fontWeight: '600', marginBottom: 2 },
   totalPrice: { fontSize: 24, fontWeight: '900', color: COLORS.textDark },
   cartButton: { flexDirection: 'row', backgroundColor: COLORS.primary, paddingHorizontal: 24, paddingVertical: 16, borderRadius: 20, alignItems: 'center', shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
-  cartButtonText: { color: '#FFF', fontSize: 16, fontWeight: '800' }
+  cartButtonText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+
+  // --- NEW MODAL STYLES ---
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalContent: { backgroundColor: '#FFF', borderRadius: 24, padding: 24, width: '100%', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
+  modalIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textDark, marginBottom: 8 },
+  modalText: { fontSize: 15, color: COLORS.textMuted, textAlign: 'center', marginBottom: 24, lineHeight: 22 },
+  modalBtn: { backgroundColor: COLORS.primary, paddingVertical: 14, width: '100%', borderRadius: 14, alignItems: 'center' },
+  modalBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' }
 });

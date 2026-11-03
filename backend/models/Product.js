@@ -3,6 +3,13 @@ const mongoose = require('mongoose');
 const ProductsSchema = new mongoose.Schema({
   name: String,
   shop: String,
+  
+  shopAddress: String,
+  shopLocation: {
+    latitude: Number,
+    longitude: Number
+  },
+
   time: String,
   rating: String,
   reviews: String,

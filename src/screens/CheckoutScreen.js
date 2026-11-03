@@ -33,7 +33,7 @@ const THEME = {
 export default function CheckoutScreen({ navigation }) {
     const [loading, setLoading] = useState(true);
     const [subtotal, setSubtotal] = useState(0);
-    const [deliveryFee, setDeliveryFee] = useState(40);
+    const [deliveryFee, setDeliveryFee] = useState(0);
     const [paymentMethod, setPaymentMethod] = useState('cod'); 
     
     // --- NEW: Multiple Address States ---
@@ -83,9 +83,9 @@ export default function CheckoutScreen({ navigation }) {
             });
             const cartData = await cartRes.json();
             
-            if (cartData.items) {
-                const total = cartData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                setSubtotal(total);
+            if (cartData) {
+                setSubtotal(cartData.subtotal || 0);
+                setDeliveryFee(cartData.deliveryFee || 0);
             }
         } catch (error) {
             console.error("Failed to load checkout details:", error);
@@ -367,12 +367,12 @@ export default function CheckoutScreen({ navigation }) {
                         <Text style={styles.paymentText}>Credit / Debit Card</Text>
                         <Feather name={paymentMethod === 'card' ? "check-circle" : "circle"} size={22} color={paymentMethod === 'card' ? THEME.primary : THEME.textMuted} />
                     </TouchableOpacity>
-                    <View style={styles.divider} />
-                    <TouchableOpacity style={styles.paymentRow} onPress={() => setPaymentMethod('cod')}>
+                    {/* <View style={styles.divider} /> */}
+                    {/* <TouchableOpacity style={styles.paymentRow} onPress={() => setPaymentMethod('cod')}>
                         <View style={styles.paymentIconBox}><Feather name="dollar-sign" size={20} color={THEME.textDark} /></View>
                         <Text style={styles.paymentText}>Cash on Delivery</Text>
                         <Feather name={paymentMethod === 'cod' ? "check-circle" : "circle"} size={22} color={paymentMethod === 'cod' ? THEME.primary : THEME.textMuted} />
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
                 </View>
 
             </ScrollView>
