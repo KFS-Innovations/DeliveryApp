@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Location from 'expo-location'; // --- NEW: Imported Location
 
 const THEME = {
     primary: '#10B981',
@@ -24,7 +25,8 @@ const THEME = {
     background: '#F8FAFC',
     card: '#FFFFFF',
     border: '#E2E8F0',
-    danger: '#EF4444'
+    danger: '#EF4444',
+    surfaceActive: '#ECFDF5' // Added for the location button background
 };
 
 export default function SavedAddressesScreen({ navigation }) {
@@ -37,6 +39,9 @@ export default function SavedAddressesScreen({ navigation }) {
     const [houseDetails, setHouseDetails] = useState("");
     const [areaDetails, setAreaDetails] = useState("");
     const [landmark, setLandmark] = useState("");
+    
+    // --- NEW: Location Fetching State
+    const [isFetchingLocation, setIsFetchingLocation] = useState(false);
 
     useEffect(() => {
         fetchAddresses();
@@ -106,6 +111,36 @@ export default function SavedAddressesScreen({ navigation }) {
         setAreaDetails(address.areaDetails || "");
         setLandmark(address.landmark || "");
         setModalVisible(true);
+    };
+
+    // --- NEW: Pin Current Location Logic
+    const handleGetCurrentLocation = async () => {
+        setIsFetchingLocation(true);
+        try {
+            let { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission Denied', 'Allow location access to pin your address.');
+                setIsFetchingLocation(false);
+                return;
+            }
+
+            let location = await Location.getCurrentPositionAsync({});
+            
+            let geocode = await Location.reverseGeocodeAsync({
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude
+            });
+
+            if (geocode.length > 0) {
+                const place = geocode[0];
+                const areaInfo = [place.name, place.street, place.subregion, place.city, place.postalCode].filter(Boolean).join(', ');
+                setAreaDetails(areaInfo); 
+            }
+        } catch (error) {
+            Alert.alert('Error', 'Could not fetch location.');
+        } finally {
+            setIsFetchingLocation(false);
+        }
     };
 
     const handleSaveAddress = async () => {
@@ -206,6 +241,17 @@ export default function SavedAddressesScreen({ navigation }) {
                         </View>
                         
                         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+                            
+                            {/* --- NEW: Pin Current Location Button --- */}
+                            <TouchableOpacity style={styles.locationBtn} onPress={handleGetCurrentLocation}>
+                                {isFetchingLocation ? (
+                                    <ActivityIndicator size="small" color={THEME.primary} style={{ marginRight: 8 }} />
+                                ) : (
+                                    <Feather name="navigation" size={20} color={THEME.primary} style={{ marginRight: 8 }} />
+                                )}
+                                <Text style={styles.locationBtnText}>Pin Current Location</Text>
+                            </TouchableOpacity>
+
                             <Text style={styles.inputSubLabel}>House / Flat / Block No.*</Text>
                             <TextInput
                                 style={styles.addressInput}
@@ -268,6 +314,11 @@ const styles = StyleSheet.create({
     modalContent: { backgroundColor: THEME.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 24, paddingTop: 20, maxHeight: '90%' },
     modalHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
     modalTitle: { fontSize: 18, fontWeight: '700', color: THEME.textDark },
+    
+    // --- NEW: Styles for Location Button
+    locationBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: THEME.surfaceActive, padding: 14, borderRadius: 12, marginBottom: 10, marginTop: 8, borderWidth: 1, borderColor: '#D1FAE5' },
+    locationBtnText: { color: THEME.primary, fontWeight: '700', fontSize: 15 },
+    
     inputSubLabel: { fontSize: 13, fontWeight: '600', color: THEME.textDark, marginBottom: 6, marginTop: 12 },
     addressInput: { borderWidth: 1, borderColor: THEME.border, borderRadius: 10, padding: 12, fontSize: 15, color: THEME.textDark, backgroundColor: THEME.background },
     modalSaveBtn: { padding: 16, borderRadius: 12, backgroundColor: THEME.primary, alignItems: 'center', marginTop: 24 },

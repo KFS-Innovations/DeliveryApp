@@ -34,16 +34,16 @@ export default function CheckoutScreen({ navigation }) {
     const [loading, setLoading] = useState(true);
     const [subtotal, setSubtotal] = useState(0);
     const [deliveryFee, setDeliveryFee] = useState(0);
-    const [paymentMethod, setPaymentMethod] = useState('cod'); 
     
-    // --- NEW: Multiple Address States ---
-    const [activeAddress, setActiveAddress] = useState("Please select or add an address"); // The string used for the final order
-    const [savedAddresses, setSavedAddresses] = useState([]); // Array of address objects from DB
+    // Default to UPI instead of COD
+    const [paymentMethod, setPaymentMethod] = useState('upi'); 
+    
+    const [activeAddress, setActiveAddress] = useState("Please select or add an address"); 
+    const [savedAddresses, setSavedAddresses] = useState([]); 
     
     const [paymentUrl, setPaymentUrl] = useState(null);
     const [isAddressModalVisible, setAddressModalVisible] = useState(false);
     
-    // Form States
     const [houseDetails, setHouseDetails] = useState("");
     const [areaDetails, setAreaDetails] = useState("");
     const [landmark, setLandmark] = useState("");
@@ -64,7 +64,6 @@ export default function CheckoutScreen({ navigation }) {
             
             if (data.addresses && data.addresses.length > 0) {
                 setSavedAddresses(data.addresses);
-                // Automatically set the most recently added address as active
                 setActiveAddress(data.addresses[data.addresses.length - 1].fullAddress);
             }
         } catch (error) {
@@ -132,7 +131,6 @@ export default function CheckoutScreen({ navigation }) {
         
         try {
             const token = await AsyncStorage.getItem('authToken');
-            // Notice we changed this to POST based on your new backend route
             const res = await fetch(`http://${process.env.EXPO_PUBLIC_IP}:5000/api/users/address`, {
                 method: 'POST',
                 headers: { 
@@ -149,11 +147,10 @@ export default function CheckoutScreen({ navigation }) {
 
             const data = await res.json();
             if (data.success) {
-                setSavedAddresses(data.addresses); // Update array with the new list from DB
-                setActiveAddress(fullAddress); // Set the newly created one as active
+                setSavedAddresses(data.addresses);
+                setActiveAddress(fullAddress); 
                 setAddressModalVisible(false); 
                 
-                // Clear form
                 setHouseDetails("");
                 setAreaDetails("");
                 setLandmark("");
@@ -167,79 +164,40 @@ export default function CheckoutScreen({ navigation }) {
 
     const totalAmount = subtotal + deliveryFee;
 
-    const finalizeOrderInDB = async () => {
-        try {
-            const token = await AsyncStorage.getItem('authToken');
-            const ORDER_API_URL = `http://${process.env.EXPO_PUBLIC_IP}:5000/api/order/place`;
-
-            const response = await fetch(ORDER_API_URL, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    paymentMethod: paymentMethod,
-                    deliveryAddress: activeAddress,
-                    totalAmount: totalAmount
-                })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                Alert.alert(
-                    "Order Placed!", 
-                    "Your order has been confirmed successfully.",
-                    [{ text: "Track Order", onPress: () => navigation.replace('OrderStatus', { orderId: data.orderId }) }]
-                );
-            } else {
-                Alert.alert("Error", data.error || "Could not place order");
-            }
-        } catch (error) {
-            console.error("Order Creation Error:", error);
-            Alert.alert("Error", "Something went wrong while placing your order.");
-        }
-    };
-
     const handlePlaceOrder = async () => {
         if (activeAddress === "Please select or add an address" || activeAddress === "Failed to load address") {
             return Alert.alert("Delivery Address", "Please select or add a delivery address before placing your order.");
         }
 
-        if (paymentMethod === 'upi' || paymentMethod === 'card') {
-            try {
-                // 1. Fetch the token and userId from local storage
-                const token = await AsyncStorage.getItem('authToken');
-                const myUserId = await AsyncStorage.getItem('userId'); 
+        try {
+            const token = await AsyncStorage.getItem('authToken');
+            const myUserId = await AsyncStorage.getItem('userId'); 
 
-                const API_URL = `http://${process.env.EXPO_PUBLIC_IP}:5000/api/payment/generate-link`;
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` // Good practice to include the token
-                    },
-                    // 2. INJECT userId INTO THE BODY HERE
-                    body: JSON.stringify({ 
-                        amount: totalAmount,
-                        userId: myUserId,
-                        deliveryAddress: activeAddress 
-                    }) 
-                });
-                
-                const data = await response.json();
-                
-                if (data.payment_url) {
-                    setPaymentUrl(data.payment_url); 
-                } else {
-                    Alert.alert("Error", "Could not generate payment link.");
-                }
-            } catch (error) {
-                Alert.alert("Error", "Could not connect to payment server.");
+            // All orders now route exclusively through Razorpay online payment
+            const API_URL = `http://${process.env.EXPO_PUBLIC_IP}:5000/api/payment/generate-link`;
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify({ 
+                    amount: totalAmount,
+                    userId: myUserId,
+                    deliveryAddress: activeAddress,
+                    paymentMethod: paymentMethod
+                }) 
+            });
+            
+            const data = await response.json();
+            
+            if (data.payment_url) {
+                setPaymentUrl(data.payment_url); 
+            } else {
+                Alert.alert("Error", "Could not generate payment link.");
             }
-        } else {
-            finalizeOrderInDB();
+        } catch (error) {
+            Alert.alert("Error", "Could not connect to payment server.");
         }
     };
 
@@ -269,12 +227,10 @@ export default function CheckoutScreen({ navigation }) {
             const data = await response.json();
 
             if (data.success) {
-                // The frontend no longer saves the order. 
-                // The Razorpay Webhook will save it in the background!
                 Alert.alert(
                     "Payment Successful!", 
                     "Your order is being processed securely.",
-                    [{ text: "OK", onPress: () => navigation.replace('MainTabs') }] // Change 'Home' to your orders screen if you prefer
+                    [{ text: "OK", onPress: () => navigation.replace('MainTabs') }] 
                 );
             } else {
                 Alert.alert("Payment Failed", "We could not verify your transaction.");
@@ -367,12 +323,6 @@ export default function CheckoutScreen({ navigation }) {
                         <Text style={styles.paymentText}>Credit / Debit Card</Text>
                         <Feather name={paymentMethod === 'card' ? "check-circle" : "circle"} size={22} color={paymentMethod === 'card' ? THEME.primary : THEME.textMuted} />
                     </TouchableOpacity>
-                    {/* <View style={styles.divider} /> */}
-                    {/* <TouchableOpacity style={styles.paymentRow} onPress={() => setPaymentMethod('cod')}>
-                        <View style={styles.paymentIconBox}><Feather name="dollar-sign" size={20} color={THEME.textDark} /></View>
-                        <Text style={styles.paymentText}>Cash on Delivery</Text>
-                        <Feather name={paymentMethod === 'cod' ? "check-circle" : "circle"} size={22} color={paymentMethod === 'cod' ? THEME.primary : THEME.textMuted} />
-                    </TouchableOpacity> */}
                 </View>
 
             </ScrollView>
@@ -387,7 +337,6 @@ export default function CheckoutScreen({ navigation }) {
                 </TouchableOpacity>
             </View>
 
-            {/* --- UPDATED: MULTIPLE ADDRESS MODAL --- */}
             <Modal visible={isAddressModalVisible} animationType="slide" transparent={true} onRequestClose={() => setAddressModalVisible(false)}>
                 <KeyboardAvoidingView 
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
@@ -403,7 +352,6 @@ export default function CheckoutScreen({ navigation }) {
                         
                         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
                             
-                            {/* Render Array of Saved Addresses - FIX: Replaced && with ternary to avoid rendering '0' */}
                             {savedAddresses.length > 0 ? (
                                 <View style={styles.addressSectionBlock}>
                                     <Text style={styles.inputLabel}>Saved Addresses</Text>
@@ -440,7 +388,6 @@ export default function CheckoutScreen({ navigation }) {
                                 </View>
                             ) : null}
 
-                            {/* Add New Address Form */}
                             <Text style={styles.inputLabel}>{savedAddresses.length > 0 ? 'Or Add a New Address' : 'Add New Address'}</Text>
                             
                             <TouchableOpacity style={styles.locationBtn} onPress={handleGetCurrentLocation}>
@@ -488,11 +435,10 @@ export default function CheckoutScreen({ navigation }) {
                 </KeyboardAvoidingView>
             </Modal>
 
-            {/* RAZORPAY WEBVIEW MODAL */}
             <Modal 
                 visible={!!paymentUrl} 
                 animationType="slide" 
-                onRequestClose={handleClosePayment} // <-- Handles Android physical back button
+                onRequestClose={handleClosePayment} 
             >
                 <SafeAreaView style={{ flex: 1, backgroundColor: THEME.background }}>
                     <View style={styles.header}>
@@ -556,7 +502,6 @@ const styles = StyleSheet.create({
     placeOrderBtn: { backgroundColor: THEME.primary, paddingVertical: 14, paddingHorizontal: 28, borderRadius: 12, shadowColor: THEME.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
     placeOrderText: { color: '#FFF', fontWeight: '700', fontSize: 16 },
     
-    // Address Modal Styles
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
     modalContent: { backgroundColor: THEME.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 24, paddingTop: 20, maxHeight: '90%' },
     modalHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },

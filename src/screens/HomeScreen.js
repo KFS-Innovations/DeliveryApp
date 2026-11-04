@@ -50,13 +50,41 @@ export default function HomeScreen({ navigation }) {
     const [activeOrder, setActiveOrder] = useState(null);
     const [cartSummary, setCartSummary] = useState(null);
 
-    // --- NEW: Extract first letter of user's name for avatar placeholder ---
     const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : 'G';
 
     useEffect(() => {
         fetchProducts();
         fetchSavedAddress();
-        checkAndLoadLocation();
+        
+        // // --- UPDATED: Strict Location Pin Check ---
+        // const initializeLocation = async () => {
+        //     try {
+        //         const token = await AsyncStorage.getItem('authToken');
+        //         if (!token) return;
+
+        //         // Fetch the user's exact database record to check for the 'location' object
+        //         const API_URL = process.env.EXPO_PUBLIC_IP 
+        //             ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/users/me` // Assuming you have a route to get user profile
+        //             : 'http://192.168.0.107:5000/api/users/me';
+                
+        //         const res = await fetch(API_URL, { headers: { 'Authorization': `Bearer ${token}` } });
+        //         const data = await res.json();
+
+        //         // Specifically verify the existence of the location object (the GPS pin)
+        //         if (data.success && data.user && data.user.location && data.user.location.address) {
+        //             setCurrentAddress(data.user.location.address);
+        //             await AsyncStorage.setItem('cachedAddress', data.user.location.address);
+        //         } else {
+        //             // If no location object exists (even if addresses exist), force GPS fetch
+        //             handleGetGPSLocation();
+        //         }
+        //     } catch (error) {
+        //         // Fallback to aggressive fetch on network failure
+        //         handleGetGPSLocation();
+        //     }
+        // };
+        handleGetGPSLocation();
+        // initializeLocation();
     }, []);
 
     useFocusEffect(
@@ -95,19 +123,6 @@ export default function HomeScreen({ navigation }) {
             }
         } catch (error) {
             console.error("Error fetching pending activities:", error);
-        }
-    };
-
-    const checkAndLoadLocation = async () => {
-        try {
-            const cached = await AsyncStorage.getItem('cachedAddress');
-            if (cached) {
-                setCurrentAddress(cached);
-            } else {
-                handleGetGPSLocation();
-            }
-        } catch (error) {
-            handleGetGPSLocation();
         }
     };
 
@@ -208,7 +223,6 @@ export default function HomeScreen({ navigation }) {
                     
                     <View style={styles.headerRow}>
                         <View style={styles.headerLeft}>
-                            {/* --- UPDATED: Replaced Image with Avatar Placeholder --- */}
                             <TouchableOpacity 
                                 onPress={() => navigation.navigate('Profile')}
                                 style={styles.avatarPlaceholder}
@@ -217,7 +231,7 @@ export default function HomeScreen({ navigation }) {
                             </TouchableOpacity>
                             
                             <View style={styles.addressContainer}>
-                                <Text style={styles.deliverToText}>Deliver to {user?.user?.name ? `• ${user.user.name}` : ''}</Text>
+                                <Text style={styles.deliverToText}>Deliver to {user?.user?.name ? `${user.user.name}` : ''}</Text>
                                 
                                 <TouchableOpacity 
                                     style={styles.addressSelector}
@@ -422,7 +436,6 @@ const styles = StyleSheet.create({
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, marginBottom: 25 },
     headerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 15 },
     
-    // --- UPDATED: Avatar Styles ---
     avatarPlaceholder: { width: 44, height: 44, borderRadius: 22, backgroundColor: THEME.primary, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
     avatarText: { fontSize: 20, fontWeight: '800', color: '#FFFFFF' },
     

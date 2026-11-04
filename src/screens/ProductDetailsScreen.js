@@ -20,7 +20,6 @@ import { COLORS } from '../components/theme';
 
 const { width } = Dimensions.get('window');
 
-// Helper function to determine units and steps based on category
 const getUnitConfig = (category) => {
   switch (category?.toLowerCase()) {
     case 'veg':
@@ -43,11 +42,9 @@ export default function ProductDetailsScreen({ route, navigation }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   
-  // --- NEW: Custom Error Modal State ---
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   
-  // Initialize quantity and rules based on the product's category
   const unitConfig = getUnitConfig(product.category);
   const [quantity, setQuantity] = useState(unitConfig.min);
 
@@ -85,7 +82,7 @@ export default function ProductDetailsScreen({ route, navigation }) {
   const currencySymbol = product.price.replace(/[0-9.]/g, '') || '₹';
   const totalPrice = (numericPrice * quantity).toFixed(2);
 
-const handleAddToCart = async () => {
+  const handleAddToCart = async () => {
     setIsAddingToCart(true);
     try {
       const token = await AsyncStorage.getItem('authToken');
@@ -107,21 +104,18 @@ const handleAddToCart = async () => {
 
       const data = await response.json();
 
-      // Catch the 15km logic (where success is explicitly false)
       if (data.success === false) {
           setErrorMessage(data.error || "Delivery unavailable for this item.");
-          setShowErrorModal(true); // Triggers the beautiful UI Modal
+          setShowErrorModal(true); 
           return;
       }
 
-      // Catch any OTHER backend issues (like missing tokens or server crashes)
       if (!response.ok) {
           setErrorMessage(data.error || "Could not add item to cart.");
-          setShowErrorModal(true); // Triggers the beautiful UI Modal
+          setShowErrorModal(true); 
           return;
       }
 
-      // If it passes all checks, navigate to Cart!
       navigation.navigate('Cart');
 
     } catch (error) {
@@ -149,9 +143,9 @@ const handleAddToCart = async () => {
           <Feather name="chevron-left" size={28} color={COLORS.textDark} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Details</Text>
-        <TouchableOpacity style={styles.headerIconBtn}>
-          <Ionicons name={product.isFavorite ? "heart" : "heart-outline"} size={26} color={product.isFavorite ? "#EF4444" : COLORS.textDark} />
-        </TouchableOpacity>
+        
+        {/* REPLACED HEART ICON WITH EMPTY PLACEHOLDER TO KEEP TITLE CENTERED */}
+        <View style={styles.headerIconBtn} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -279,7 +273,6 @@ const handleAddToCart = async () => {
         </TouchableOpacity>
       </View>
 
-      {/* --- NEW: Custom Error Modal UI --- */}
       <Modal visible={showErrorModal} transparent={true} animationType="fade">
         <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
@@ -303,7 +296,7 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 100 },
   
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
-  headerIconBtn: { padding: 8 },
+  headerIconBtn: { padding: 8, width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }, // Added fixed dimensions to ensure perfect symmetry
   headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textDark },
   
   imageWrapper: { width: width - 40, height: width - 40, alignSelf: 'center', backgroundColor: '#F8FAFC', borderRadius: 32, marginTop: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.04, shadowRadius: 16, elevation: 2 },
@@ -352,7 +345,6 @@ const styles = StyleSheet.create({
   cartButton: { flexDirection: 'row', backgroundColor: COLORS.primary, paddingHorizontal: 24, paddingVertical: 16, borderRadius: 20, alignItems: 'center', shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
   cartButtonText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
 
-  // --- NEW MODAL STYLES ---
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalContent: { backgroundColor: '#FFF', borderRadius: 24, padding: 24, width: '100%', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
   modalIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
