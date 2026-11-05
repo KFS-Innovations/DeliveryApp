@@ -86,6 +86,27 @@ export default function ProductDetailsScreen({ route, navigation }) {
     setIsAddingToCart(true);
     try {
       const token = await AsyncStorage.getItem('authToken');
+      
+      // 1. Retrieve the stored coordinates from AsyncStorage
+      const activeLat = await AsyncStorage.getItem('activeLat');
+      const activeLng = await AsyncStorage.getItem('activeLng');
+
+      // 2. Validate that coordinates exist before proceeding
+      if (!activeLat || !activeLng || activeLat === 'null' || activeLng === 'null') {
+          setIsAddingToCart(false);
+          return Alert.alert(
+              "Delivery Address Required", 
+              "Please select or pin a delivery address before adding items to your cart.",
+              [
+                  { text: "Cancel", style: "cancel" },
+                  { 
+                      text: "Select Address", 
+                      onPress: () => navigation.navigate('SavedAddresses') 
+                  }
+              ]
+          );
+      }
+
       const API_URL = process.env.EXPO_PUBLIC_IP 
         ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/cart/add`
         : 'http://192.168.0.107:5000/api/cart/add';
@@ -99,6 +120,8 @@ export default function ProductDetailsScreen({ route, navigation }) {
         body: JSON.stringify({
           productId: product._id,
           quantity: quantity,
+          userLat: parseFloat(activeLat), // Sent as a number for backend Haversine formula
+          userLng: parseFloat(activeLng)
         })
       });
 

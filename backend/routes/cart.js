@@ -20,7 +20,10 @@ router.get('/', verifyToken, async (req, res) => {
     let maxDistance = 0;
     let subtotal = 0;
 
-    const formattedItems = cart.items.map(item => {
+    // FIX: Filter out any items where the populated product no longer exists
+    const validItems = cart.items.filter(item => item.productId != null);
+
+    const formattedItems = validItems.map(item => {
       const product = item.productId;
       const numericPrice = parseFloat(product.price.replace(/[^0-9.]/g, '')) || 0;
       
@@ -65,29 +68,33 @@ router.get('/', verifyToken, async (req, res) => {
 
 // 2. Add to Cart (POST /api/cart/add)
 router.post('/add', verifyToken, async (req, res) => {
-  const { productId, quantity } = req.body;
+  // 1. Destructure userLat and userLng coming from the frontend request body
+  const { productId, quantity, userLat, userLng } = req.body;
 
   try {
-    const user = await User.findById(req.user.id);
     const product = await Product.findById(productId);
 
-    if (!user || !user.location || !user.location.latitude) {
+    // 2. Validate that active coordinates exist
+    if (!userLat || !userLng) {
       return res.status(400).json({ error: 'Please set your delivery location first.' });
     }
 
-    // Calculate distance if product has location coordinates saved
-    if (product && product.shopLocation && product.shopLocation.latitude) {
-      const distance = calculateDistance(
-        user.location.latitude,
-        user.location.longitude,
-        product.shopLocation.latitude,
-        product.shopLocation.longitude
-      );
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found.' });
+    }
 
+    // 3. Calculate distance using the dynamic frontend coordinates
+    if (product.shopLocation && product.shopLocation.latitude) {
+      const distance = calculateDistance(
+        parseFloat(userLat),
+        parseFloat(userLng),
+        parseFloat(product.shopLocation.latitude),
+        parseFloat(product.shopLocation.longitude)
+      );
       // Block if distance is greater than 15 km
       if (distance > 15) {
         return res.status(400).json({ 
-          error: "Delivery unavailable. This shop is too far away to deliver fresh items to your current location." 
+          error: `Delivery unavailable. This shop is too far away to deliver fresh items to your current location.` 
         });
       }
     }

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
     View, 
     Text, 
@@ -35,11 +36,10 @@ export default function CheckoutScreen({ navigation }) {
     const [subtotal, setSubtotal] = useState(0);
     const [deliveryFee, setDeliveryFee] = useState(0);
     
-    // Default to UPI instead of COD
     const [paymentMethod, setPaymentMethod] = useState('upi'); 
     
+    // Active address loaded from AsyncStorage
     const [activeAddress, setActiveAddress] = useState("Please select or add an address"); 
-    const [savedAddresses, setSavedAddresses] = useState([]); 
     
     const [paymentUrl, setPaymentUrl] = useState(null);
     const [isAddressModalVisible, setAddressModalVisible] = useState(false);
@@ -50,25 +50,31 @@ export default function CheckoutScreen({ navigation }) {
     const [isFetchingLocation, setIsFetchingLocation] = useState(false);
 
     useEffect(() => {
-        fetchCheckoutData();
-        fetchUserAddresses(); 
+        initializeCheckout();
     }, []);
 
-    const fetchUserAddresses = async () => {
+    useFocusEffect(
+        useCallback(() => {
+            loadActiveAddressFromStorage();
+        }, [])
+    );
+
+    const initializeCheckout = async () => {
+        setLoading(true);
+        await fetchCheckoutData();
+        await loadActiveAddressFromStorage();
+        setLoading(false);
+    };
+
+    // Load active address text stored from Home/SavedAddresses screen
+    const loadActiveAddressFromStorage = async () => {
         try {
-            const token = await AsyncStorage.getItem('authToken');
-            const res = await fetch(`http://${process.env.EXPO_PUBLIC_IP}:5000/api/users/address`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            
-            if (data.addresses && data.addresses.length > 0) {
-                setSavedAddresses(data.addresses);
-                setActiveAddress(data.addresses[data.addresses.length - 1].fullAddress);
+            const cached = await AsyncStorage.getItem('cachedAddress');
+            if (cached) {
+                setActiveAddress(cached);
             }
         } catch (error) {
-            console.error("Fetch address error:", error);
-            setActiveAddress("Failed to load address");
+            console.error("Error loading cached address:", error);
         }
     };
 
@@ -105,6 +111,9 @@ export default function CheckoutScreen({ navigation }) {
 
             let location = await Location.getCurrentPositionAsync({});
             
+            await AsyncStorage.setItem('activeLat', location.coords.latitude.toString());
+            await AsyncStorage.setItem('activeLng', location.coords.longitude.toString());
+
             let geocode = await Location.reverseGeocodeAsync({
                 latitude: location.coords.latitude,
                 longitude: location.coords.longitude
@@ -131,6 +140,9 @@ export default function CheckoutScreen({ navigation }) {
         
         try {
             const token = await AsyncStorage.getItem('authToken');
+            const activeLat = await AsyncStorage.getItem('activeLat');
+            const activeLng = await AsyncStorage.getItem('activeLng');
+
             const res = await fetch(`http://${process.env.EXPO_PUBLIC_IP}:5000/api/users/address`, {
                 method: 'POST',
                 headers: { 
@@ -142,15 +154,19 @@ export default function CheckoutScreen({ navigation }) {
                     areaDetails, 
                     landmark, 
                     fullAddress,
+                    location: {
+                        latitude: activeLat ? parseFloat(activeLat) : null,
+                        longitude: activeLng ? parseFloat(activeLng) : null
+                    }
                 })
             });
 
             const data = await res.json();
             if (data.success) {
-                setSavedAddresses(data.addresses);
                 setActiveAddress(fullAddress); 
-                setAddressModalVisible(false); 
+                await AsyncStorage.setItem('cachedAddress', fullAddress);
                 
+                setAddressModalVisible(false); 
                 setHouseDetails("");
                 setAreaDetails("");
                 setLandmark("");
@@ -172,8 +188,9 @@ export default function CheckoutScreen({ navigation }) {
         try {
             const token = await AsyncStorage.getItem('authToken');
             const myUserId = await AsyncStorage.getItem('userId'); 
+            const activeLat = await AsyncStorage.getItem('activeLat');
+            const activeLng = await AsyncStorage.getItem('activeLng');
 
-            // All orders now route exclusively through Razorpay online payment
             const API_URL = `http://${process.env.EXPO_PUBLIC_IP}:5000/api/payment/generate-link`;
             const response = await fetch(API_URL, {
                 method: 'POST',
@@ -185,11 +202,24 @@ export default function CheckoutScreen({ navigation }) {
                     amount: totalAmount,
                     userId: myUserId,
                     deliveryAddress: activeAddress,
-                    paymentMethod: paymentMethod
+                    paymentMethod: paymentMethod,
+                    latitude: activeLat ? parseFloat(activeLat) : null,
+                    longitude: activeLng ? parseFloat(activeLng) : null
                 }) 
             });
             
             const data = await response.json();
+            
+            // Catch 15km distance block or validation errors from backend
+            if (!response.ok) {
+                Alert.alert("Delivery Restricted", data.error || "Selected location exceeds the 15km delivery limit.");
+                return; 
+            }
+
+            // If backend recalculated a new delivery fee/total, sync it to frontend state
+            if (data.totalAmount) {
+                setSubtotal(data.totalAmount - deliveryFee); // Keeps calculations synced if needed
+            }
             
             if (data.payment_url) {
                 setPaymentUrl(data.payment_url); 
@@ -284,13 +314,19 @@ export default function CheckoutScreen({ navigation }) {
                             <Feather name="map-pin" size={20} color={THEME.primary} />
                         </View>
                         <View style={styles.addressTextContainer}>
-                            <Text style={styles.addressLabel}>Deliver To</Text>
+                            <Text style={styles.addressLabel}>Delivery Address</Text>
                             <Text style={styles.addressValue} numberOfLines={3}>{activeAddress}</Text>
                         </View>
-                        <TouchableOpacity onPress={() => setAddressModalVisible(true)}>
-                            <Text style={styles.changeText}>Change</Text>
-                        </TouchableOpacity>
                     </View>
+                    
+                    {/* Add New Address Button */}
+                    <TouchableOpacity 
+                        style={styles.addNewAddressBtn} 
+                        onPress={() => setAddressModalVisible(true)}
+                    >
+                        <Feather name="plus" size={18} color={THEME.primary} />
+                        <Text style={styles.addNewAddressText}>Add New Address</Text>
+                    </TouchableOpacity>
                 </View>
 
                 <Text style={styles.sectionTitle}>Order Summary</Text>
@@ -337,6 +373,7 @@ export default function CheckoutScreen({ navigation }) {
                 </TouchableOpacity>
             </View>
 
+            {/* Add New Address Modal */}
             <Modal visible={isAddressModalVisible} animationType="slide" transparent={true} onRequestClose={() => setAddressModalVisible(false)}>
                 <KeyboardAvoidingView 
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
@@ -344,51 +381,13 @@ export default function CheckoutScreen({ navigation }) {
                 >
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeaderRow}>
-                            <Text style={styles.modalTitle}>Delivery Address</Text>
+                            <Text style={styles.modalTitle}>Add New Address</Text>
                             <TouchableOpacity onPress={() => setAddressModalVisible(false)} style={{ padding: 4 }}>
                                 <Feather name="x" size={24} color={THEME.textMuted} />
                             </TouchableOpacity>
                         </View>
                         
                         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
-                            
-                            {savedAddresses.length > 0 ? (
-                                <View style={styles.addressSectionBlock}>
-                                    <Text style={styles.inputLabel}>Saved Addresses</Text>
-                                    
-                                    {savedAddresses.map((addr, index) => {
-                                        const isSelected = activeAddress === addr.fullAddress;
-                                        return (
-                                            <TouchableOpacity 
-                                                key={addr._id || index}
-                                                style={[
-                                                    styles.savedAddressCard, 
-                                                    isSelected && styles.savedAddressCardActive
-                                                ]}
-                                                onPress={() => {
-                                                    setActiveAddress(addr.fullAddress);
-                                                    setAddressModalVisible(false);
-                                                }}
-                                                activeOpacity={0.7}
-                                            >
-                                                <View style={styles.iconBoxSmall}>
-                                                    <Feather name="home" size={18} color={isSelected ? THEME.primary : THEME.textMuted} />
-                                                </View>
-                                                <View style={{ flex: 1 }}>
-                                                    <Text style={styles.savedAddressText} numberOfLines={2}>{addr.fullAddress}</Text>
-                                                </View>
-                                                {isSelected && (
-                                                    <Feather name="check-circle" size={20} color={THEME.primary} style={{ marginLeft: 12 }} />
-                                                )}
-                                            </TouchableOpacity>
-                                        );
-                                    })}
-                                    
-                                    <View style={styles.modalDivider} />
-                                </View>
-                            ) : null}
-
-                            <Text style={styles.inputLabel}>{savedAddresses.length > 0 ? 'Or Add a New Address' : 'Add New Address'}</Text>
                             
                             <TouchableOpacity style={styles.locationBtn} onPress={handleGetCurrentLocation}>
                                 {isFetchingLocation ? (
@@ -435,6 +434,7 @@ export default function CheckoutScreen({ navigation }) {
                 </KeyboardAvoidingView>
             </Modal>
 
+            {/* Payment WebView Modal */}
             <Modal 
                 visible={!!paymentUrl} 
                 animationType="slide" 
@@ -477,12 +477,25 @@ const styles = StyleSheet.create({
     sectionTitle: { fontSize: 16, fontWeight: '700', color: THEME.textDark, marginBottom: 12, marginTop: 8 },
     card: { backgroundColor: THEME.card, borderRadius: 16, padding: 16, marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
     
-    addressRow: { flexDirection: 'row', alignItems: 'center' },
+    addressRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
     iconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ECFDF5', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
     addressTextContainer: { flex: 1, paddingRight: 8 },
     addressLabel: { fontSize: 14, fontWeight: '700', color: THEME.textDark, marginBottom: 2 },
     addressValue: { fontSize: 13, color: THEME.textMuted, lineHeight: 18 },
-    changeText: { color: THEME.primary, fontWeight: '600', fontSize: 14, padding: 8 },
+    
+    addNewAddressBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#FFF',
+        borderWidth: 1.5,
+        borderColor: THEME.primary,
+        borderStyle: 'dashed',
+        borderRadius: 12,
+        paddingVertical: 12,
+        marginTop: 8,
+    },
+    addNewAddressText: { fontSize: 14, fontWeight: '700', color: THEME.primary, marginLeft: 6 },
     
     summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
     summaryText: { fontSize: 14, color: THEME.textMuted, fontWeight: '500' },
@@ -507,16 +520,7 @@ const styles = StyleSheet.create({
     modalHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
     modalTitle: { fontSize: 18, fontWeight: '700', color: THEME.textDark },
     
-    inputLabel: { fontSize: 16, fontWeight: '700', color: THEME.textDark, marginBottom: 12, marginTop: 8 },
     inputSubLabel: { fontSize: 13, fontWeight: '600', color: THEME.textDark, marginBottom: 6, marginTop: 12 },
-    
-    addressSectionBlock: { marginBottom: 8 },
-    savedAddressCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: THEME.background, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: THEME.border, marginBottom: 10 },
-    savedAddressCardActive: { backgroundColor: THEME.surfaceActive, borderColor: THEME.primary },
-    iconBoxSmall: { marginRight: 12 },
-    savedAddressTitle: { fontSize: 14, fontWeight: '700', color: THEME.textDark, marginBottom: 4 },
-    savedAddressText: { fontSize: 13, color: THEME.textMuted, lineHeight: 18 },
-    modalDivider: { height: 1, backgroundColor: THEME.border, marginVertical: 10 },
     
     locationBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: THEME.surfaceActive, padding: 14, borderRadius: 12, marginBottom: 10, borderWidth: 1, borderColor: '#D1FAE5' },
     locationBtnText: { color: THEME.primary, fontWeight: '700', fontSize: 15 },

@@ -51,13 +51,15 @@ router.get('/address', verifyToken, async (req, res) => {
 // POST /api/user/address  
 router.post('/address', verifyToken, async (req, res) => {
     try {
-        const { houseDetails, areaDetails, landmark, fullAddress } = req.body;
+        // NEW: Extract location from req.body
+        const { houseDetails, areaDetails, landmark, fullAddress, location } = req.body;
         
         const newAddress = {
             houseDetails,
             areaDetails,
             landmark,
             fullAddress,
+            location // NEW: Include location in the new address object
         };
 
         const updatedUser = await User.findByIdAndUpdate(
@@ -81,7 +83,8 @@ router.post('/address', verifyToken, async (req, res) => {
 // PUT /api/user/address/:addressId
 router.put('/address/:addressId', verifyToken, async (req, res) => {
     try {
-        const { houseDetails, areaDetails, landmark, fullAddress } = req.body;
+        // NEW: Extract location from req.body
+        const { houseDetails, areaDetails, landmark, fullAddress, location } = req.body;
         const { addressId } = req.params;
 
         // Use the positional operator ($) to update the specific address inside the array
@@ -92,7 +95,8 @@ router.put('/address/:addressId', verifyToken, async (req, res) => {
                     "addresses.$.houseDetails": houseDetails,
                     "addresses.$.areaDetails": areaDetails,
                     "addresses.$.landmark": landmark,
-                    "addresses.$.fullAddress": fullAddress
+                    "addresses.$.fullAddress": fullAddress,
+                    "addresses.$.location": location // NEW: Update the specific address location
                 } 
             },
             { returnDocument: 'after' }

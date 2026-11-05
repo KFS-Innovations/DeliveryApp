@@ -56,41 +56,22 @@ export default function HomeScreen({ navigation }) {
         fetchProducts();
         fetchSavedAddress();
         
-        // // --- UPDATED: Strict Location Pin Check ---
-        // const initializeLocation = async () => {
-        //     try {
-        //         const token = await AsyncStorage.getItem('authToken');
-        //         if (!token) return;
-
-        //         // Fetch the user's exact database record to check for the 'location' object
-        //         const API_URL = process.env.EXPO_PUBLIC_IP 
-        //             ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/users/me` // Assuming you have a route to get user profile
-        //             : 'http://192.168.0.107:5000/api/users/me';
-                
-        //         const res = await fetch(API_URL, { headers: { 'Authorization': `Bearer ${token}` } });
-        //         const data = await res.json();
-
-        //         // Specifically verify the existence of the location object (the GPS pin)
-        //         if (data.success && data.user && data.user.location && data.user.location.address) {
-        //             setCurrentAddress(data.user.location.address);
-        //             await AsyncStorage.setItem('cachedAddress', data.user.location.address);
-        //         } else {
-        //             // If no location object exists (even if addresses exist), force GPS fetch
-        //             handleGetGPSLocation();
-        //         }
-        //     } catch (error) {
-        //         // Fallback to aggressive fetch on network failure
-        //         handleGetGPSLocation();
-        //     }
-        // };
         handleGetGPSLocation();
-        // initializeLocation();
     }, []);
 
     useFocusEffect(
         useCallback(() => {
             fetchActiveCartAndOrders();
             fetchSavedAddress();
+            
+            // --- NEW: Refresh active address text from storage when returning to Home ---
+            const loadActiveAddress = async () => {
+                const storedAddress = await AsyncStorage.getItem('cachedAddress');
+                if (storedAddress) {
+                    setCurrentAddress(storedAddress);
+                }
+            };
+            loadActiveAddress();
         }, [])
     );
 
@@ -171,6 +152,10 @@ export default function HomeScreen({ navigation }) {
 
             let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
             
+            // --- CRITICAL: Save live GPS coordinates to activeLat and activeLng ---
+            await AsyncStorage.setItem('activeLat', location.coords.latitude.toString());
+            await AsyncStorage.setItem('activeLng', location.coords.longitude.toString());
+
             let geocode = await Location.reverseGeocodeAsync({
                 latitude: location.coords.latitude,
                 longitude: location.coords.longitude
@@ -178,8 +163,8 @@ export default function HomeScreen({ navigation }) {
 
             let readableAddress = "Unknown Location";
             if (geocode.length > 0) {
-                const { city, district, region } = geocode[0];
-                readableAddress = city || district || region || "Current Location";
+                const place = geocode[0];
+                readableAddress = [place.name, place.street, place.city, place.region].filter(Boolean).join(', ') || "Current Location";
                 setCurrentAddress(readableAddress);
             }
             await AsyncStorage.setItem('cachedAddress', readableAddress);
@@ -396,6 +381,15 @@ export default function HomeScreen({ navigation }) {
                                         onPress={async () => {
                                             setCurrentAddress(addr.fullAddress);
                                             await AsyncStorage.setItem('cachedAddress', addr.fullAddress);
+                                            
+                                            // --- SAVES LAT & LNG TO ASYNCSTORAGE ---
+                                            if (addr.location?.latitude && addr.location?.longitude) {
+                                                await AsyncStorage.setItem('activeLat', addr.location.latitude.toString());
+                                                await AsyncStorage.setItem('activeLng', addr.location.longitude.toString());
+                                            } else {
+                                                console.log("⚠️ Warning: Selected address is missing location coordinates.");
+                                            }
+
                                             setLocationModalVisible(false);
                                         }}
                                     >
