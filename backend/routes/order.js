@@ -5,7 +5,6 @@ const Cart = require('../models/Cart');
 const Product = require('../models/Product'); // Using plural Products matching your schema
 const verifyToken = require('../middleware/verifyToken');
 
-
 // 1. PLACE NEW ORDER
 router.post('/place', verifyToken, async (req, res) => {
     try {
@@ -48,7 +47,14 @@ router.post('/place', verifyToken, async (req, res) => {
 router.get('/history', verifyToken, async (req, res) => {
     try {
         const orders = await Order.find({ userId: req.user.id })
-            .populate('items.productId', 'name image price') 
+            .populate({
+                path: 'items.productId',
+                select: 'name image price sellerId', 
+                populate: {
+                    path: 'sellerId',
+                    select: 'shopName' // Deep populate shop name for history list
+                }
+            })
             .sort({ createdAt: -1 });
 
         res.json({ success: true, orders });
@@ -58,10 +64,57 @@ router.get('/history', verifyToken, async (req, res) => {
     }
 });
 
+// --- NEW SELLER ROUTE ---
+// 2.5 GET ORDERS SPECIFIC TO THE LOGGED-IN SELLER (MUST BE ABOVE /:id)
+router.get('/seller', verifyToken, async (req, res) => {
+    try {
+        // Step A: Find all products that belong to this seller's ID
+        const sellerProducts = await Product.find({ sellerId: req.user.id }).select('_id');
+        const sellerProductIds = sellerProducts.map(product => product._id);
+
+        if (sellerProductIds.length === 0) {
+            return res.json({ success: true, orders: [] }); 
+        }
+
+        // Step B: Find all orders containing this seller's products AND populate the User
+        const orders = await Order.find({ 'items.productId': { $in: sellerProductIds } })
+            .populate('userId', 'name phone') // <-- ADD THIS LINE to fetch the buyer's name and phone
+            .populate({
+                path: 'items.productId',
+                select: 'name image price sellerId',
+            })
+            .sort({ createdAt: -1 });
+
+        // Step C: Filter the order items array so the seller only sees their own products 
+        const sellerSpecificOrders = orders.map(order => {
+            const orderObj = order.toObject();
+            
+            orderObj.items = orderObj.items.filter(item => 
+                item.productId && item.productId.sellerId.toString() === req.user.id
+            );
+            
+            return orderObj;
+        });
+
+        res.json({ success: true, orders: sellerSpecificOrders });
+    } catch (error) {
+        console.error("Fetch Seller Orders Error:", error);
+        res.status(500).json({ error: 'Failed to fetch seller orders' });
+    }
+});
+
 // 3. GET SINGLE ORDER STATUS
 router.get('/:id', verifyToken, async (req, res) => {
     try {
-        const order = await Order.findById(req.params.id).populate('items.productId');
+        // --- DEEP POPULATION APPLIED HERE ---
+        const order = await Order.findById(req.params.id).populate({
+            path: 'items.productId',
+            populate: {
+                path: 'sellerId',
+                select: 'shopName contactNumber storeLocation'
+            }
+        });
+
         if (!order) {
             return res.status(404).json({ error: 'Order not found' });
         }
@@ -85,6 +138,7 @@ router.put('/:id/status', verifyToken, async (req, res) => {
             };
         }
         
+        // --- DEEP POPULATION APPLIED HERE ---
         const updatedOrder = await Order.findByIdAndUpdate(
             req.params.id,
             { 
@@ -94,7 +148,13 @@ router.put('/:id/status', verifyToken, async (req, res) => {
                 }
             },
             { new: true }
-        ).populate('items.productId');
+        ).populate({
+            path: 'items.productId',
+            populate: {
+                path: 'sellerId',
+                select: 'shopName contactNumber storeLocation'
+            }
+        });
 
         if (!updatedOrder) {
             return res.status(404).json({ error: 'Order not found' });

@@ -2,12 +2,12 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS } from '../components/theme';
-// 1. Import useNavigation
 import { useNavigation } from '@react-navigation/native'; 
 
 export default function ProductGrid({ products, isLoading }) {
-  // 2. Initialize the navigation hook
   const navigation = useNavigation(); 
+
+  const safeProducts = Array.isArray(products) ? products : [];
 
   return (
     <View>
@@ -17,8 +17,7 @@ export default function ProductGrid({ products, isLoading }) {
 
       {isLoading ? (
         <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 20 }} />
-      ) : products && products.length === 0 ? (
-        // --- NEW: Empty State UI ---
+      ) : safeProducts.length === 0 ? (
         <View style={styles.emptyContainer}>
             <View style={styles.emptyIconBox}>
                 <Feather name="shopping-bag" size={32} color="#94A3B8" />
@@ -28,22 +27,16 @@ export default function ProductGrid({ products, isLoading }) {
         </View>
       ) : (
         <View style={styles.recommendedGrid}>
-          {products.map((item) => (
+          {safeProducts.map((item) => (
             <TouchableOpacity 
               key={item._id} 
               style={styles.gridCard}
-              // 3. Add the onPress event to navigate and pass the data!
               onPress={() => navigation.navigate('ProductDetails', { product: item })}
               activeOpacity={0.8}
             >
               
               <View style={styles.imageContainer}>
                 <Image source={{ uri: item.image }} style={styles.gridImage} />
-                
-                {/* <TouchableOpacity style={styles.heartBadge}>
-                  <Ionicons name={item.isFavorite ? "heart" : "heart-outline"} size={16} color={item.isFavorite ? COLORS.heartIcon : COLORS.textMuted} />
-                </TouchableOpacity> */}
-
                 <View style={styles.timeBadge}>
                   <Feather name="clock" size={10} color={COLORS.textDark} style={{ marginRight: 4 }} />
                   <Text style={styles.timeText}>{item.time || "15 min"}</Text>
@@ -53,20 +46,23 @@ export default function ProductGrid({ products, isLoading }) {
               <View style={styles.cardFooter}>
                 <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
                 
-                <View style={styles.shopRatingRow}>
-                  <View style={styles.shopInfo}>
-                    <Ionicons name="storefront-outline" size={12} color={COLORS.heartIcon} style={{ marginRight: 2 }} />
-                    <Text style={styles.shopName} numberOfLines={1}>{item.shop || item.tags || "Local Market"}</Text>
-                  </View>
-                  <View style={styles.ratingInfo}>
-                    <Text style={styles.ratingScore}>{item.rating || "4.5"}</Text>
-                    <Ionicons name="star" size={10} color={COLORS.starGold} style={{ marginHorizontal: 2 }} />
-                  </View>
+                {/* Shop Name Row */}
+                <View style={styles.shopInfo}>
+                  <Ionicons name="storefront-outline" size={12} color={COLORS.heartIcon} style={{ marginRight: 2 }} />
+                  <Text style={styles.shopName} numberOfLines={1}>
+                    {item.sellerId?.shopName || "Local Market"}
+                  </Text>
                 </View>
 
-                <View style={styles.deliveryPriceRow}>
+                {/* Rating and Price Row (Grouped together on the same level) */}
+                <View style={styles.ratingPriceRow}>
+                  <View style={styles.ratingInfo}>
+                    <Text style={styles.ratingScore}>{item.rating || "4.5"}</Text>
+                    <Ionicons name="star" size={12} color={COLORS.starGold} style={{ marginHorizontal: 2 }} />
+                  </View>
+
                   <View style={styles.pricePill}>
-                    <Text style={styles.priceText}>{item.price || "$4.99"}</Text>
+                    <Text style={styles.priceText}>{item.price || "₹0"}</Text>
                   </View>
                 </View>
 
@@ -86,21 +82,23 @@ const styles = StyleSheet.create({
   gridCard: { width: '48%', backgroundColor: COLORS.cardBg, borderRadius: 20, marginBottom: 16, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 0.5 },
   imageContainer: { position: 'relative', height: 120, width: '100%' },
   gridImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  heartBadge: { position: 'absolute', top: 10, right: 10, backgroundColor: COLORS.heartBg, width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   timeBadge: { position: 'absolute', bottom: 8, left: 8, backgroundColor: COLORS.badgeBg, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   timeText: { fontSize: 10, fontWeight: '700', color: COLORS.textDark },
   cardFooter: { padding: 12 },
-  itemName: { fontSize: 14, fontWeight: '800', color: COLORS.textDark, marginBottom: 6 },
-  shopRatingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  shopInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  shopName: { fontSize: 11, fontWeight: '600', color: COLORS.textDark, marginRight: 4 },
-  ratingInfo: { flexDirection: 'row', alignItems: 'center' },
-  ratingScore: { fontSize: 11, fontWeight: '800', color: COLORS.textDark },
-  deliveryPriceRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'flex-end' },
+  itemName: { fontSize: 14, fontWeight: '800', color: COLORS.textDark, marginBottom: 4 },
+  
+  // Updated Styles for Layout
+  shopInfo: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  shopName: { fontSize: 11, fontWeight: '600', color: COLORS.textMuted, marginRight: 4, flex: 1 },
+  
+  ratingPriceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  
+  ratingInfo: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFBEB', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 8 },
+  ratingScore: { fontSize: 12, fontWeight: '800', color: '#B45309' },
+  
   pricePill: { backgroundColor: COLORS.priceBg, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 14 },
   priceText: { color: '#FFF', fontSize: 11, fontWeight: '800' },
 
-  // --- NEW: Empty State Styles ---
   emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 50, paddingHorizontal: 20 },
   emptyIconBox: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textDark, marginBottom: 8 },

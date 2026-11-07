@@ -1,25 +1,28 @@
 const mongoose = require('mongoose');
 
 const ProductsSchema = new mongoose.Schema({
-  name: String,
-  shop: String,
-  
-  shopAddress: String,
-  shopLocation: {
-    latitude: Number,
-    longitude: Number
+  // Link this product directly to the Seller who created it
+  sellerId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'sellers',
+    required: true 
   },
-
-  time: String,
-  rating: String,
-  reviews: String,
-  deliveryNote: String,
-  price: String,
-  image: String,
+  
+  // Product-specific details
+  name: { type: String, required: true },
   description: String,
-  sellerPhone: String,
+  price: String, 
+  image: String,
   category: String,
+  
+  // Optional / Metric fields
+  time: String,
+  rating: String,       
+  reviews: String,      
+  deliveryNote: String, 
   isFavorite: { type: Boolean, default: false }
-});
 
+}, { timestamps: true });
+
+// Inside models/Product.js
 module.exports = mongoose.model('Products', ProductsSchema, 'Products');

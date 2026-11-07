@@ -83,7 +83,8 @@ export default function OrderStatusScreen({ route, navigation }) {
     };
 
     const handleCallSeller = () => {
-        const sellerPhone = order?.items?.[0]?.productId?.sellerPhone || '+919876543210';
+        // UPDATED: Added fallback for nested sellerId contact number
+        const sellerPhone = order?.items?.[0]?.productId?.sellerId?.contactNumber || order?.items?.[0]?.productId?.sellerPhone || '+919876543210';
         Linking.openURL(`tel:${sellerPhone}`).catch(err => {
             Alert.alert("Error", "Could not open phone dialer.");
         });
@@ -150,31 +151,24 @@ export default function OrderStatusScreen({ route, navigation }) {
         );
     };
 
-    // --- NEW: Distance-Based ETA Calculation ---
     const getEstimatedTime = (status, orderData) => {
         if (!orderData) return '-- mins';
 
-        // 1. Calculate delivery fee to reverse-engineer the distance
         const itemsTotal = orderData.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0;
         const deliveryFee = orderData.totalAmount - itemsTotal;
-
-        // 2. Reverse calculate approximate distance (Fee = ₹15/km. Minimum fee is 40, which is ~2.6km)
         const approxDistanceKm = Math.max(2.6, deliveryFee / 15);
 
-        // 3. Compute time (15 mins prep + ~4 mins per km travel)
         const prepTime = 15;
         const travelTime = Math.ceil(approxDistanceKm * 4);
         const totalBaseTime = prepTime + travelTime;
 
-        // 4. Return phase-specific ETA
         switch(status) {
             case 'Placed': 
-                return `${totalBaseTime} - ${totalBaseTime + 10} mins`;
+                return `${totalBaseTime}-${totalBaseTime + 10} mins`;
             case 'Preparing': 
-                return `${totalBaseTime - 5} - ${totalBaseTime + 5} mins`;
+                return `${totalBaseTime - 5}-${totalBaseTime + 5} mins`;
             case 'Out for Delivery': 
-                // Only travel time remains
-                return `${travelTime} - ${travelTime + 5} mins`;
+                return `${travelTime}-${travelTime + 5} mins`;
             default: 
                 return '-- mins';
         }
@@ -192,8 +186,9 @@ export default function OrderStatusScreen({ route, navigation }) {
     const isCancelled = order.orderStatus === 'Cancelled';
     const activeStepIndex = getActiveStepIndex();
     
-    const shopName = order?.items?.[0]?.productId?.shop || "Official Store";
-    const shopPhone = order?.items?.[0]?.productId?.sellerPhone || "+91 98765 43210";
+    // UPDATED: Added fallbacks for nested sellerId shopName and contactNumber
+    const shopName = order?.items?.[0]?.productId?.sellerId?.shopName || order?.items?.[0]?.productId?.shop || "Official Store";
+    const shopPhone = order?.items?.[0]?.productId?.sellerId?.contactNumber || order?.items?.[0]?.productId?.sellerPhone || "+91 98765 43210";
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -234,7 +229,6 @@ export default function OrderStatusScreen({ route, navigation }) {
                                 </Text>
                             </View>
                             {order.orderStatus !== 'Delivered' && (
-                                // Passes the order object to calculate distance
                                 <Text style={styles.etaTime}>{getEstimatedTime(order.orderStatus, order)}</Text>
                             )}
                             <View style={styles.amountBadge}>
@@ -436,7 +430,6 @@ const styles = StyleSheet.create({
 
     driverCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: THEME.card, borderRadius: 16, padding: 16, marginTop: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 },
     
-    // NEW: Style for the generic head icon
     driverAvatarFallback: { width: 54, height: 54, borderRadius: 27, marginRight: 16, borderWidth: 2, borderColor: '#334155', backgroundColor: '#0F172A', justifyContent: 'center', alignItems: 'center' },
     driverInfo: { flex: 1, justifyContent: 'center' },
     driverName: { fontSize: 16, fontWeight: '700', color: THEME.textDark, marginBottom: 4 },

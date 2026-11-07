@@ -55,7 +55,6 @@ export default function HomeScreen({ navigation }) {
     useEffect(() => {
         fetchProducts();
         fetchSavedAddress();
-        
         handleGetGPSLocation();
     }, []);
 
@@ -64,7 +63,6 @@ export default function HomeScreen({ navigation }) {
             fetchActiveCartAndOrders();
             fetchSavedAddress();
             
-            // --- NEW: Refresh active address text from storage when returning to Home ---
             const loadActiveAddress = async () => {
                 const storedAddress = await AsyncStorage.getItem('cachedAddress');
                 if (storedAddress) {
@@ -152,7 +150,6 @@ export default function HomeScreen({ navigation }) {
 
             let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
             
-            // --- CRITICAL: Save live GPS coordinates to activeLat and activeLng ---
             await AsyncStorage.setItem('activeLat', location.coords.latitude.toString());
             await AsyncStorage.setItem('activeLng', location.coords.longitude.toString());
 
@@ -240,7 +237,6 @@ export default function HomeScreen({ navigation }) {
                         </View>
                     </View>
 
-                    {/* Search Bar & Popup Wrapper */}
                     <View style={styles.searchWrapper}>
                         <View style={styles.searchContainer}>
                             <Feather name="search" size={20} color={THEME.textMuted} style={styles.searchIcon} />
@@ -258,7 +254,6 @@ export default function HomeScreen({ navigation }) {
                             )}
                         </View>
 
-                        {/* Search Results Dropdown */}
                         {searchQuery.length > 0 && (
                             <View style={styles.searchDropdown}>
                                 <ScrollView style={{ maxHeight: 220 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={true}>
@@ -279,7 +274,13 @@ export default function HomeScreen({ navigation }) {
                                             >
                                                 <Image source={{ uri: product.image }} style={styles.searchItemImage} />
                                                 <View style={styles.searchItemDetails}>
-                                                    <Text style={styles.searchItemName} numberOfLines={1}>{product.name}</Text>
+                                                    <View style={{ flex: 1, marginRight: 8 }}>
+                                                        <Text style={styles.searchItemName} numberOfLines={1}>{product.name}</Text>
+                                                        {/* UPDATED: Safely access the nested seller shop name */}
+                                                        <Text style={{ fontSize: 11, color: THEME.textMuted }} numberOfLines={1}>
+                                                            {product.sellerId?.shopName || 'Local Shop'}
+                                                        </Text>
+                                                    </View>
                                                     <Text style={styles.searchItemPrice}>₹{product.price}</Text>
                                                 </View>
                                             </TouchableOpacity>
@@ -301,12 +302,12 @@ export default function HomeScreen({ navigation }) {
                         onSelectCategory={setSelectedCategory} 
                     />
 
+                    {/* The nested products array gets passed directly to ProductGrid here */}
                     <ProductGrid products={categoryFilteredProducts} isLoading={isLoading} />
 
                 </ScrollView>
             </SafeAreaView>
 
-            {/* FLOATING ACTION BANNER */}
             {activeOrder ? (
                <TouchableOpacity 
                     style={[styles.floatingBanner, { backgroundColor: '#13737e' }]} 
@@ -339,7 +340,6 @@ export default function HomeScreen({ navigation }) {
                 </TouchableOpacity>
             ) : null}
 
-            {/* LOCATION SELECTION MODAL */}
             <Modal visible={isLocationModalVisible} animationType="fade" transparent={true} onRequestClose={() => setLocationModalVisible(false)}>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
@@ -382,12 +382,9 @@ export default function HomeScreen({ navigation }) {
                                             setCurrentAddress(addr.fullAddress);
                                             await AsyncStorage.setItem('cachedAddress', addr.fullAddress);
                                             
-                                            // --- SAVES LAT & LNG TO ASYNCSTORAGE ---
                                             if (addr.location?.latitude && addr.location?.longitude) {
                                                 await AsyncStorage.setItem('activeLat', addr.location.latitude.toString());
                                                 await AsyncStorage.setItem('activeLng', addr.location.longitude.toString());
-                                            } else {
-                                                console.log("⚠️ Warning: Selected address is missing location coordinates.");
                                             }
 
                                             setLocationModalVisible(false);
@@ -451,7 +448,7 @@ const styles = StyleSheet.create({
     searchDropdownItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: THEME.border },
     searchItemImage: { width: 36, height: 36, borderRadius: 6, backgroundColor: THEME.background, marginRight: 12 },
     searchItemDetails: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    searchItemName: { fontSize: 14, fontWeight: '600', color: THEME.textDark, flex: 1, marginRight: 8 },
+    searchItemName: { fontSize: 14, fontWeight: '600', color: THEME.textDark, marginBottom: 2 },
     searchItemPrice: { fontSize: 13, color: THEME.primary, fontWeight: '700' },
     searchNoResult: { padding: 16, alignItems: 'center' },
     searchNoResultText: { color: THEME.textMuted, fontSize: 13, fontWeight: '500' },

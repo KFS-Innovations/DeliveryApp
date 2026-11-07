@@ -87,11 +87,9 @@ export default function ProductDetailsScreen({ route, navigation }) {
     try {
       const token = await AsyncStorage.getItem('authToken');
       
-      // 1. Retrieve the stored coordinates from AsyncStorage
       const activeLat = await AsyncStorage.getItem('activeLat');
       const activeLng = await AsyncStorage.getItem('activeLng');
 
-      // 2. Validate that coordinates exist before proceeding
       if (!activeLat || !activeLng || activeLat === 'null' || activeLng === 'null') {
           setIsAddingToCart(false);
           return Alert.alert(
@@ -120,7 +118,7 @@ export default function ProductDetailsScreen({ route, navigation }) {
         body: JSON.stringify({
           productId: product._id,
           quantity: quantity,
-          userLat: parseFloat(activeLat), // Sent as a number for backend Haversine formula
+          userLat: parseFloat(activeLat),
           userLng: parseFloat(activeLng)
         })
       });
@@ -151,7 +149,8 @@ export default function ProductDetailsScreen({ route, navigation }) {
   };
 
   const handleContactSeller = () => {
-    const sellerPhone = product.sellerPhone || '+919876543210'; 
+    // UPDATED: Safely checks for nested sellerId contact number, falling back to flat sellerPhone or default
+    const sellerPhone = product.sellerId?.contactNumber || product.sellerPhone || '+919876543210'; 
     Linking.openURL(`tel:${sellerPhone}`).catch(err => {
       Alert.alert("Error", "Could not open phone dialer.");
     });
@@ -166,8 +165,6 @@ export default function ProductDetailsScreen({ route, navigation }) {
           <Feather name="chevron-left" size={28} color={COLORS.textDark} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Details</Text>
-        
-        {/* REPLACED HEART ICON WITH EMPTY PLACEHOLDER TO KEEP TITLE CENTERED */}
         <View style={styles.headerIconBtn} />
       </View>
 
@@ -180,7 +177,8 @@ export default function ProductDetailsScreen({ route, navigation }) {
         <View style={styles.titleArea}>
           <View style={styles.titleColumn}>
             <Text style={styles.productName}>{product.name}</Text>
-            <Text style={styles.shopName}>By {product.shop}</Text>
+            {/* UPDATED: Displays nested seller shopName if available, else flat shop field */}
+            <Text style={styles.shopName}>By {product.sellerId?.shopName || product.shop || "Local Shop"}</Text>
           </View>
           
           <View style={styles.qtyBox}>
@@ -237,7 +235,10 @@ export default function ProductDetailsScreen({ route, navigation }) {
               <Feather name="shield" size={20} color={COLORS.primary} />
             </View>
             <View>
-              <Text style={styles.sellerName}>{product.sellerName || product.shop || "Official Store"}</Text>
+              {/* UPDATED: Displays nested seller shopName if available, else flat sellerName/shop */}
+              <Text style={styles.sellerName}>
+                  {product.sellerId?.shopName || product.sellerName || product.shop || "Official Store"}
+              </Text>
               <Text style={styles.sellerVerified}>Verified Seller</Text>
             </View>
           </View>
@@ -319,7 +320,7 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 100 },
   
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
-  headerIconBtn: { padding: 8, width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }, // Added fixed dimensions to ensure perfect symmetry
+  headerIconBtn: { padding: 8, width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }, 
   headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textDark },
   
   imageWrapper: { width: width - 40, height: width - 40, alignSelf: 'center', backgroundColor: '#F8FAFC', borderRadius: 32, marginTop: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.04, shadowRadius: 16, elevation: 2 },
