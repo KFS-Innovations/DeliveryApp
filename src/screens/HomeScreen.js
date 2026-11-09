@@ -11,7 +11,8 @@ import {
     StatusBar,
     Alert,
     Modal,
-    Keyboard 
+    Keyboard,
+    RefreshControl // Added RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -39,6 +40,7 @@ export default function HomeScreen({ navigation }) {
     const { user } = useContext(AuthContext);
     const [products, setProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false); // Added refreshing state
   
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [searchQuery, setSearchQuery] = useState(''); 
@@ -53,13 +55,13 @@ export default function HomeScreen({ navigation }) {
     const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : 'G';
 
     useEffect(() => {
-        fetchProducts();
         fetchSavedAddress();
         handleGetGPSLocation();
     }, []);
 
     useFocusEffect(
         useCallback(() => {
+            fetchProducts();
             fetchActiveCartAndOrders();
             fetchSavedAddress();
             
@@ -72,6 +74,15 @@ export default function HomeScreen({ navigation }) {
             loadActiveAddress();
         }, [])
     );
+
+    // Added onRefresh function for pull-to-refresh
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        fetchProducts();
+        await fetchActiveCartAndOrders();
+        await fetchSavedAddress();
+        setRefreshing(false);
+    }, []);
 
     const fetchActiveCartAndOrders = async () => {
         try {
@@ -201,7 +212,20 @@ export default function HomeScreen({ navigation }) {
             <SafeAreaView style={styles.safeArea}>
                 <StatusBar barStyle="dark-content" backgroundColor={THEME.surface} />
                 
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+                {/* Attached RefreshControl to ScrollView */}
+                <ScrollView 
+                    showsVerticalScrollIndicator={false} 
+                    contentContainerStyle={styles.scrollContent} 
+                    keyboardShouldPersistTaps="handled"
+                    refreshControl={
+                        <RefreshControl 
+                            refreshing={refreshing} 
+                            onRefresh={onRefresh} 
+                            colors={[THEME.primary]}
+                            tintColor={THEME.primary} 
+                        />
+                    }
+                >
                     
                     <View style={styles.headerRow}>
                         <View style={styles.headerLeft}>
@@ -258,33 +282,49 @@ export default function HomeScreen({ navigation }) {
                             <View style={styles.searchDropdown}>
                                 <ScrollView style={{ maxHeight: 220 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={true}>
                                     {searchFilteredProducts.length > 0 ? (
-                                        searchFilteredProducts.map((product, index) => (
-                                            <TouchableOpacity 
-                                                key={product._id} 
-                                                style={[
-                                                    styles.searchDropdownItem,
-                                                    index === searchFilteredProducts.length - 1 && { borderBottomWidth: 0 }
-                                                ]}
-                                                activeOpacity={0.7}
-                                                onPress={() => {
-                                                    setSearchQuery('');
-                                                    Keyboard.dismiss();
-                                                    navigation.navigate('ProductDetails', { product });
-                                                }}
-                                            >
-                                                <Image source={{ uri: product.image }} style={styles.searchItemImage} />
-                                                <View style={styles.searchItemDetails}>
-                                                    <View style={{ flex: 1, marginRight: 8 }}>
-                                                        <Text style={styles.searchItemName} numberOfLines={1}>{product.name}</Text>
-                                                        {/* UPDATED: Safely access the nested seller shop name */}
-                                                        <Text style={{ fontSize: 11, color: THEME.textMuted }} numberOfLines={1}>
-                                                            {product.sellerId?.shopName || 'Local Shop'}
-                                                        </Text>
+                                        searchFilteredProducts.map((product, index) => {
+                                            const isOutOfStock = product.inStock === false;
+
+                                            return (
+                                                <TouchableOpacity 
+                                                    key={product._id} 
+                                                    style={[
+                                                        styles.searchDropdownItem,
+                                                        index === searchFilteredProducts.length - 1 && { borderBottomWidth: 0 },
+                                                        isOutOfStock && { opacity: 0.5 }
+                                                    ]}
+                                                    activeOpacity={0.7}
+                                                    disabled={isOutOfStock}
+                                                    onPress={() => {
+                                                        setSearchQuery('');
+                                                        Keyboard.dismiss();
+                                                        navigation.navigate('ProductDetails', { product });
+                                                    }}
+                                                >
+                                                    <View style={{ position: 'relative', marginRight: 12 }}>
+                                                        <Image source={{ uri: product.image }} style={styles.searchItemImage} />
+                                                        
+                                                        {isOutOfStock && (
+                                                            <View style={[styles.searchItemImage, { position: 'absolute', top: 0, left: 0, backgroundColor: 'rgba(255, 255, 255, 0.65)' }]} />
+                                                        )}
                                                     </View>
-                                                    <Text style={styles.searchItemPrice}>₹{product.price}</Text>
-                                                </View>
-                                            </TouchableOpacity>
-                                        ))
+                                                    <View style={styles.searchItemDetails}>
+                                                        <View style={{ flex: 1, marginRight: 8 }}>
+                                                            <Text style={[styles.searchItemName, isOutOfStock && { textDecorationLine: 'line-through' }]} numberOfLines={1}>{product.name}</Text>
+                                                            <Text style={{ fontSize: 11, color: THEME.textMuted }} numberOfLines={1}>
+                                                                {product.sellerId?.shopName || 'Local Shop'}
+                                                            </Text>
+                                                        </View>
+                                                        <View style={{ alignItems: 'flex-end' }}>
+                                                            <Text style={styles.searchItemPrice}>₹{product.price}</Text>
+                                                            {isOutOfStock && (
+                                                                <Text style={{ fontSize: 10, color: '#EF4444', fontWeight: 'bold', marginTop: 2 }}>OUT OF STOCK</Text>
+                                                            )}
+                                                        </View>
+                                                    </View>
+                                                </TouchableOpacity>
+                                            );
+                                        })
                                     ) : (
                                         <View style={styles.searchNoResult}>
                                             <Text style={styles.searchNoResultText}>No match for "{searchQuery}"</Text>
@@ -302,7 +342,6 @@ export default function HomeScreen({ navigation }) {
                         onSelectCategory={setSelectedCategory} 
                     />
 
-                    {/* The nested products array gets passed directly to ProductGrid here */}
                     <ProductGrid products={categoryFilteredProducts} isLoading={isLoading} />
 
                 </ScrollView>

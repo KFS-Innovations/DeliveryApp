@@ -81,7 +81,13 @@ export default function CheckoutScreen({ navigation }) {
     const fetchCheckoutData = async () => {
         try {
             const token = await AsyncStorage.getItem('authToken');
-            const CART_API_URL = `http://${process.env.EXPO_PUBLIC_IP}:5000/api/cart`;
+            
+            // --- NEW: Grab live coordinates from storage ---
+            const activeLat = await AsyncStorage.getItem('activeLat');
+            const activeLng = await AsyncStorage.getItem('activeLng');
+
+            // --- NEW: Append coordinates to the URL ---
+            const CART_API_URL = `http://${process.env.EXPO_PUBLIC_IP}:5000/api/cart?lat=${activeLat}&lng=${activeLng}`;
 
             const cartRes = await fetch(CART_API_URL, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -97,7 +103,7 @@ export default function CheckoutScreen({ navigation }) {
         } finally {
             setLoading(false);
         }
-    };
+    };  
 
     const handleGetCurrentLocation = async () => {
         setIsFetchingLocation(true);

@@ -10,7 +10,11 @@ const verifyToken = require('../middleware/verifyToken');
 // 1. Fetch Cart with Dynamic Delivery Fee
 router.get('/', verifyToken, async (req, res) => {
   try {
-    const cart = await Cart.findOne({ userId: req.user.id }).populate('items.productId');
+    const cart = await Cart.findOne({ userId: req.user.id }).populate({
+      path: 'items.productId',
+      populate: { path: 'sellerId', select: 'storeLocation' }
+    });
+    
     const user = await User.findById(req.user.id);
     
     if (!cart || cart.items.length === 0) {
@@ -20,24 +24,27 @@ router.get('/', verifyToken, async (req, res) => {
     let maxDistance = 0;
     let subtotal = 0;
 
-    // FIX: Filter out any items where the populated product no longer exists
+    // --- THE FIX: GRAB LIVE LOCATION FROM FRONTEND URL ---
+    const activeLat = parseFloat(req.query.lat) || (user.location && user.location.latitude);
+    const activeLng = parseFloat(req.query.lng) || (user.location && user.location.longitude);
+
     const validItems = cart.items.filter(item => item.productId != null);
 
     const formattedItems = validItems.map(item => {
       const product = item.productId;
       const numericPrice = parseFloat(product.price.replace(/[^0-9.]/g, '')) || 0;
       
-      // Add to running subtotal
       subtotal += numericPrice * item.quantity;
       
-      // Calculate distance for this item's shop to find the furthest shop in the cart
-      if (user.location && user.location.latitude && product.shopLocation && product.shopLocation.latitude) {
+      // USE activeLat AND activeLng HERE
+      if (activeLat && activeLng && product.sellerId?.storeLocation?.latitude) {
         const distance = calculateDistance(
-          user.location.latitude,
-          user.location.longitude,
-          product.shopLocation.latitude,
-          product.shopLocation.longitude
+          activeLat,
+          activeLng,
+          product.sellerId.storeLocation.latitude,
+          product.sellerId.storeLocation.longitude
         );
+
         if (distance > maxDistance) {
           maxDistance = distance;
         }
@@ -52,7 +59,6 @@ router.get('/', verifyToken, async (req, res) => {
       };
     });
 
-    // Calculate Delivery Fee: ₹15 per km (minimum ₹40)
     const deliveryFee = Math.max(40, Math.ceil(maxDistance * 15));
 
     res.json({ 
@@ -68,13 +74,11 @@ router.get('/', verifyToken, async (req, res) => {
 
 // 2. Add to Cart (POST /api/cart/add)
 router.post('/add', verifyToken, async (req, res) => {
-  // 1. Destructure userLat and userLng coming from the frontend request body
   const { productId, quantity, userLat, userLng } = req.body;
 
   try {
-    const product = await Product.findById(productId);
-
-    // 2. Validate that active coordinates exist
+    const product = await Product.findById(productId).populate('sellerId', 'storeLocation');
+    
     if (!userLat || !userLng) {
       return res.status(400).json({ error: 'Please set your delivery location first.' });
     }
@@ -83,13 +87,12 @@ router.post('/add', verifyToken, async (req, res) => {
       return res.status(404).json({ error: 'Product not found.' });
     }
 
-    // 3. Calculate distance using the dynamic frontend coordinates
-    if (product.shopLocation && product.shopLocation.latitude) {
+    if (product.sellerId?.storeLocation?.latitude) {
       const distance = calculateDistance(
         parseFloat(userLat),
         parseFloat(userLng),
-        parseFloat(product.shopLocation.latitude),
-        parseFloat(product.shopLocation.longitude)
+        parseFloat(product.sellerId.storeLocation.latitude),
+        parseFloat(product.sellerId.storeLocation.longitude)
       );
       // Block if distance is greater than 15 km
       if (distance > 15) {

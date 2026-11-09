@@ -42,9 +42,14 @@ export default function CartScreen({ navigation }) {
         try {
             const token = await AsyncStorage.getItem('authToken');
             
+            // --- NEW: Grab the live location from storage ---
+            const activeLat = await AsyncStorage.getItem('activeLat');
+            const activeLng = await AsyncStorage.getItem('activeLng');
+            
+            // --- NEW: Attach lat and lng to the URL ---
             const API_URL = process.env.EXPO_PUBLIC_IP 
-                ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/cart`
-                : 'http://192.168.0.107:5000/api/cart';
+                ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/cart?lat=${activeLat}&lng=${activeLng}`
+                : `http://192.168.0.107:5000/api/cart?lat=${activeLat}&lng=${activeLng}`;
 
             const response = await fetch(API_URL, {
                 headers: { 'Authorization': `Bearer ${token}` }

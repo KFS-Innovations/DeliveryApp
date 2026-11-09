@@ -13,6 +13,7 @@ const productRoutes = require('./routes/products');
 const cartRoutes = require('./routes/cart');
 const legalRoutes = require('./routes/legal');
 const sellerAuthRoutes = require('./routes/SellerAuth');
+const sellerRoutes = require('./routes/seller');
 
 
 // --- MOUNT ROUTES ---
@@ -24,6 +25,7 @@ app.use('/api/payment', require('./routes/payment'));
 app.use('/api/order', require('./routes/order'));
 app.use('/legal', legalRoutes);
 app.use('/api/seller', sellerAuthRoutes);
+app.use('/api/seller', sellerRoutes);
 
 // --- DATABASE CONNECTION ---
 mongoose.connect(process.env.MONGODB_URI, {

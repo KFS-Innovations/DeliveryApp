@@ -40,6 +40,30 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
+router.put('/:id', verifyToken, async (req, res) => {
+  try {
+    const productId = req.params.id;
+    
+    // Security check: Ensure the product belongs to the logged-in seller
+    const product = await Product.findOne({ _id: productId, sellerId: req.user.id });
+    if (!product) {
+      return res.status(403).json({ error: 'Not authorized to edit this product' });
+    }
+
+    // Update the product with whatever fields were sent in req.body
+    const updatedProduct = await Product.findByIdAndUpdate(
+      productId,
+      { $set: req.body },
+      { new: true }
+    );
+
+    res.json({ success: true, message: 'Product updated successfully', product: updatedProduct });
+  } catch (error) {
+    console.error("Update Product Error:", error);
+    res.status(500).json({ error: 'Failed to update product' });
+  }
+});
+
 // 3. GET ALL PRODUCTS (Public route for the Buyer App Home Screen)
 router.get('/', async (req, res) => {
   try {

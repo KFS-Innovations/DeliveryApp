@@ -20,7 +20,8 @@ const ProductsSchema = new mongoose.Schema({
   rating: String,       
   reviews: String,      
   deliveryNote: String, 
-  isFavorite: { type: Boolean, default: false }
+  isFavorite: { type: Boolean, default: false },
+  inStock: { type: Boolean, default: true },
 
 }, { timestamps: true });
 

@@ -9,69 +9,94 @@ export default function ProductGrid({ products, isLoading }) {
 
   const safeProducts = Array.isArray(products) ? products : [];
 
+  // SORT LOGIC: In-stock items first, out-of-stock items pushed to the bottom
+  const sortedProducts = [...safeProducts].sort((a, b) => {
+    const aOutOfStock = a.inStock === false;
+    const bOutOfStock = b.inStock === false;
+    
+    if (aOutOfStock && !bOutOfStock) return 1;  // Push 'a' down
+    if (!aOutOfStock && bOutOfStock) return -1; // Pull 'b' up
+    return 0; // Keep original order otherwise
+  });
+
   return (
-    <View>
-      <View style={[styles.sectionHeader, { marginTop: 10 }]}>
-        <Text style={[styles.sectionTitle, { fontSize: 20 }]}>Recommended for you</Text>
-      </View>
+  <View style={styles.recommendedGrid}>
+    {sortedProducts.map((item) => {
+      const isOutOfStock = item.inStock === false;
 
-      {isLoading ? (
-        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 20 }} />
-      ) : safeProducts.length === 0 ? (
-        <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconBox}>
-                <Feather name="shopping-bag" size={32} color="#94A3B8" />
+      return (
+        <TouchableOpacity 
+          key={item._id} 
+          style={[styles.gridCard, isOutOfStock && { opacity: 0.9 }]}
+          onPress={() => navigation.navigate('ProductDetails', { product: item })}
+          activeOpacity={0.8}
+          disabled={isOutOfStock} // Disables navigation entirely
+        >
+        <View style={styles.imageContainer}>
+          {/* BLUR RADIUS APPLIED HERE */}
+          <Image 
+            source={{ uri: item.image }} 
+            style={styles.gridImage} 
+            blurRadius={isOutOfStock ? 8 : 0} 
+          />
+          
+          {/* HEAVILY FADED OVERLAY */}
+          {isOutOfStock && (
+              <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255, 255, 255, 0.75)' }} />
+          )}
+
+          {/* OUT OF STOCK BADGE WITH SHADOW */}
+          {isOutOfStock && (
+              <View style={{ 
+                position: 'absolute', 
+                top: '40%', 
+                alignSelf: 'center', 
+                backgroundColor: '#ea3030', 
+                paddingHorizontal: 10, 
+                paddingVertical: 6, 
+                borderRadius: 6,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 3,
+                elevation: 5
+              }}>
+                  <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '900', letterSpacing: 1 }}>OUT OF STOCK</Text>
+              </View>
+          )}
+
+          <View style={styles.timeBadge}>
+            <Feather name="clock" size={10} color={COLORS.textDark} style={{ marginRight: 4 }} />
+            <Text style={styles.timeText}>{item.time || "15 min"}</Text>
+          </View>
+        </View>
+
+          <View style={styles.cardFooter}>
+            <Text style={[styles.itemName, isOutOfStock && { textDecorationLine: 'line-through', color: COLORS.textMuted }]} numberOfLines={1}>{item.name}</Text>
+            
+            <View style={styles.shopInfo}>
+              <Ionicons name="storefront-outline" size={12} color={COLORS.heartIcon} style={{ marginRight: 2 }} />
+              <Text style={styles.shopName} numberOfLines={1}>
+                {item.sellerId?.shopName || "Local Market"}
+              </Text>
             </View>
-            <Text style={styles.emptyTitle}>No items found</Text>
-            <Text style={styles.emptySub}>We don't have any products in this category yet. Check back later!</Text>
-        </View>
-      ) : (
-        <View style={styles.recommendedGrid}>
-          {safeProducts.map((item) => (
-            <TouchableOpacity 
-              key={item._id} 
-              style={styles.gridCard}
-              onPress={() => navigation.navigate('ProductDetails', { product: item })}
-              activeOpacity={0.8}
-            >
-              
-              <View style={styles.imageContainer}>
-                <Image source={{ uri: item.image }} style={styles.gridImage} />
-                <View style={styles.timeBadge}>
-                  <Feather name="clock" size={10} color={COLORS.textDark} style={{ marginRight: 4 }} />
-                  <Text style={styles.timeText}>{item.time || "15 min"}</Text>
-                </View>
+
+            <View style={styles.ratingPriceRow}>
+              <View style={styles.ratingInfo}>
+                <Text style={styles.ratingScore}>{item.rating || "4.5"}</Text>
+                <Ionicons name="star" size={12} color={COLORS.starGold} style={{ marginHorizontal: 2 }} />
               </View>
 
-              <View style={styles.cardFooter}>
-                <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
-                
-                {/* Shop Name Row */}
-                <View style={styles.shopInfo}>
-                  <Ionicons name="storefront-outline" size={12} color={COLORS.heartIcon} style={{ marginRight: 2 }} />
-                  <Text style={styles.shopName} numberOfLines={1}>
-                    {item.sellerId?.shopName || "Local Market"}
-                  </Text>
-                </View>
-
-                {/* Rating and Price Row (Grouped together on the same level) */}
-                <View style={styles.ratingPriceRow}>
-                  <View style={styles.ratingInfo}>
-                    <Text style={styles.ratingScore}>{item.rating || "4.5"}</Text>
-                    <Ionicons name="star" size={12} color={COLORS.starGold} style={{ marginHorizontal: 2 }} />
-                  </View>
-
-                  <View style={styles.pricePill}>
-                    <Text style={styles.priceText}>{item.price || "₹0"}</Text>
-                  </View>
-                </View>
-
+              <View style={[styles.pricePill, isOutOfStock && { backgroundColor: '#94A3B8' }]}>
+                <Text style={styles.priceText}>{item.price || "₹0"}</Text>
               </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-    </View>
+            </View>
+
+          </View>
+        </TouchableOpacity>
+      );
+    })}
+  </View>
   );
 }
 
@@ -87,7 +112,6 @@ const styles = StyleSheet.create({
   cardFooter: { padding: 12 },
   itemName: { fontSize: 14, fontWeight: '800', color: COLORS.textDark, marginBottom: 4 },
   
-  // Updated Styles for Layout
   shopInfo: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   shopName: { fontSize: 11, fontWeight: '600', color: COLORS.textMuted, marginRight: 4, flex: 1 },
   
