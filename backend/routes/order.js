@@ -125,45 +125,27 @@ router.get('/:id', verifyToken, async (req, res) => {
     }
 });
 
-// 4. UPDATE ORDER STATUS (For testing / Seller API)
 router.put('/:id/status', verifyToken, async (req, res) => {
     try {
-        let { orderStatus, deliveryPartner } = req.body;
+        const { orderStatus, deliveryPartner } = req.body;
         
-        // If the seller/Postman doesn't provide a driver, inject a dummy one automatically
-        if (!deliveryPartner && (orderStatus === 'Preparing' || orderStatus === 'Out for Delivery')) {
-            deliveryPartner = {
-                name: "Ramesh (Test Driver)",
-                phone: "+91 98765 43210"
-            };
-        }
-        
-        // --- DEEP POPULATION APPLIED HERE ---
-        const updatedOrder = await Order.findByIdAndUpdate(
-            req.params.id,
-            { 
-                $set: { 
-                    orderStatus: orderStatus, 
-                    ...(deliveryPartner && { deliveryPartner }) 
-                }
-            },
-            { new: true }
-        ).populate({
-            path: 'items.productId',
-            populate: {
-                path: 'sellerId',
-                select: 'shopName contactNumber storeLocation'
-            }
-        });
-
-        if (!updatedOrder) {
+        const order = await Order.findById(req.params.id);
+        if (!order) {
             return res.status(404).json({ error: 'Order not found' });
         }
 
-        res.json({ success: true, message: 'Order updated successfully', order: updatedOrder });
+        order.orderStatus = orderStatus;
+
+        // NEW: Save the delivery partner info if it was provided
+        if (deliveryPartner) {
+            order.deliveryPartner = deliveryPartner;
+        }
+
+        await order.save();
+        res.json({ success: true, message: 'Status updated', order });
     } catch (error) {
-        console.error("Update Order Status Error:", error);
-        res.status(500).json({ error: 'Failed to update order status' });
+        console.error("Order Status Update Error:", error);
+        res.status(500).json({ error: 'Failed to update order' });
     }
 });
 

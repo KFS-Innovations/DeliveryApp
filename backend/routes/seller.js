@@ -3,6 +3,7 @@ const router = express.Router();
 const Seller = require('../models/Seller'); 
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+const DeliveryPartner = require('../models/DeliveryPartner');
 
 const verifyToken = require('../middleware/verifyToken');
 
@@ -128,6 +129,82 @@ router.get('/dashboard-stats', verifyToken, async (req, res) => {
     } catch (error) {
         console.error("Dashboard Stats Error:", error);
         res.status(500).json({ error: 'Failed to fetch dashboard stats' });
+    }
+});
+
+//Delivery Partner Section
+router.get('/delivery-partners', verifyToken, async (req, res) => {
+    try {
+        const partners = await DeliveryPartner.find({ sellerId: req.user.id }).sort({ createdAt: -1 });
+        res.json({ partners });
+    } catch (error) {
+        console.error("Fetch Partners Error:", error);
+        res.status(500).json({ error: 'Failed to fetch delivery partners' });
+    }
+});
+
+// 2. Add a new delivery partner
+router.post('/delivery-partners', verifyToken, async (req, res) => {
+    try {
+        const { name, phone, vehicleType, vehicleNumber } = req.body;
+
+        if (!name || !phone || !vehicleNumber) {
+            return res.status(400).json({ error: 'Name, phone, and vehicle number are required' });
+        }
+
+        const newPartner = new DeliveryPartner({
+            sellerId: req.user.id,
+            name,
+            phone,
+            vehicleType: vehicleType || 'Bike',
+            vehicleNumber
+        });
+
+        await newPartner.save();
+        res.status(201).json({ message: 'Partner added successfully', partner: newPartner });
+    } catch (error) {
+        console.error("Add Partner Error:", error);
+        res.status(500).json({ error: 'Failed to add delivery partner' });
+    }
+});
+
+// 3. Update delivery partner status (Active/Inactive)
+router.put('/delivery-partners/:id/status', verifyToken, async (req, res) => {
+    try {
+        const { status } = req.body;
+        const partner = await DeliveryPartner.findOneAndUpdate(
+            { _id: req.params.id, sellerId: req.user.id }, // Ensure the seller owns this partner
+            { status: status },
+            { new: true }
+        );
+
+        if (!partner) {
+            return res.status(404).json({ error: 'Delivery partner not found' });
+        }
+
+        res.json({ message: 'Status updated', partner });
+    } catch (error) {
+        console.error("Update Partner Status Error:", error);
+        res.status(500).json({ error: 'Failed to update status' });
+    }
+});
+
+// 4. Delete a delivery partner
+router.delete('/delivery-partners/:id', verifyToken, async (req, res) => {
+    try {
+        const partner = await DeliveryPartner.findOneAndDelete({ 
+            _id: req.params.id, 
+            sellerId: req.user.id 
+        });
+
+        if (!partner) {
+            return res.status(404).json({ error: 'Delivery partner not found' });
+        }
+
+        res.json({ message: 'Delivery partner removed successfully' });
+    } catch (error) {
+        console.error("Delete Partner Error:", error);
+        res.status(500).json({ error: 'Failed to remove delivery partner' });
     }
 });
 

@@ -150,12 +150,58 @@ export default function HomeScreen({ navigation }) {
         }
     };
 
-    const handleGetGPSLocation = async () => {
-        setCurrentAddress("Fetching GPS...");
+    const fallbackToSavedAddress = async () => {
+        const storedAddress = await AsyncStorage.getItem('cachedAddress');
+        if (storedAddress) {
+            setCurrentAddress(storedAddress);
+            return;
+        }
+
+        // 2. If no cache, try to fetch their saved addresses from the backend
+        try {
+            const token = await AsyncStorage.getItem('authToken');
+            if (token) {
+                const API_URL = process.env.EXPO_PUBLIC_IP 
+                    ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/users/address`
+                    : 'http://192.168.0.107:5000/api/users/address';
+                
+                const res = await fetch(API_URL, { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                
+                if (data.addresses && data.addresses.length > 0) {
+                    const firstAddress = data.addresses[0].fullAddress;
+                    setCurrentAddress(firstAddress);
+                    await AsyncStorage.setItem('cachedAddress', firstAddress);
+                    
+                    // Also store coordinates if available so checkout works seamlessly
+                    if (data.addresses[0].location) {
+                        await AsyncStorage.setItem('activeLat', data.addresses[0].location.latitude.toString());
+                        await AsyncStorage.setItem('activeLng', data.addresses[0].location.longitude.toString());
+                    }
+                    return;
+                }
+            }
+        } catch (err) {
+            console.error("Fallback address fetch failed:", err);
+        }
+
+        // 3. If no cache and no saved addresses, show a neutral prompt instead of an error
+        setCurrentAddress("Select Delivery Location");
+    };
+
+    const handleGetGPSLocation = async (isManualClick = false) => {
+        // ALWAYS show feedback if the user manually clicked it
+        if (isManualClick || currentAddress === "Fetching location...") {
+            setCurrentAddress("Fetching GPS...");
+        }
+
         try {
             let { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') {
-                setCurrentAddress("Location permission denied");
+                if (isManualClick) {
+                    Alert.alert("Permission Denied", "Please allow location access in your app settings.");
+                }
+                await fallbackToSavedAddress(); 
                 return;
             }
 
@@ -194,8 +240,17 @@ export default function HomeScreen({ navigation }) {
                 });
             }
         } catch (error) {
-            console.error("Error handling location:", error);
-            setCurrentAddress("Location unavailable");
+            console.log("GPS fetch failed (Location might be off).", error.message);
+            
+            // If they explicitly clicked the button, tell them WHY it didn't work
+            if (isManualClick) {
+                Alert.alert(
+                    "Location Unavailable", 
+                    "Please make sure your device's GPS/Location toggle is turned ON and try again."
+                );
+            }
+            
+            await fallbackToSavedAddress(); 
         }
     };
 
@@ -389,10 +444,12 @@ export default function HomeScreen({ navigation }) {
                             </TouchableOpacity>
                         </View>
 
+                        
                         <TouchableOpacity 
                             style={styles.locationOption}
                             onPress={() => {
-                                handleGetGPSLocation();
+                                // ADD 'true' HERE to indicate a manual click
+                                handleGetGPSLocation(true); 
                                 setLocationModalVisible(false);
                             }}
                         >
