@@ -90,7 +90,7 @@ export default function HomeScreen({ navigation }) {
             if (!token) return;
             const headers = { 'Authorization': `Bearer ${token}` };
 
-            const orderRes = await fetch(`http://${process.env.EXPO_PUBLIC_IP}:5000/api/order/history`, { headers });
+            const orderRes = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/order/history`, { headers });
             const orderData = await orderRes.json();
             
             if (orderData.orders && orderData.orders.length > 0) {
@@ -102,7 +102,7 @@ export default function HomeScreen({ navigation }) {
                 }
             }
 
-            const cartRes = await fetch(`http://${process.env.EXPO_PUBLIC_IP}:5000/api/cart`, { headers });
+            const cartRes = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/cart`, { headers });
             const cartData = await cartRes.json();
             
             if (cartData.items && cartData.items.length > 0) {
@@ -117,9 +117,7 @@ export default function HomeScreen({ navigation }) {
     };
 
     const fetchProducts = () => {
-        const API_URL = process.env.EXPO_PUBLIC_IP 
-            ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/products`
-            : 'http://192.168.0.107:5000/api/products';
+        const API_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/products`;
 
         fetch(API_URL)
             .then((response) => response.json())
@@ -135,9 +133,7 @@ export default function HomeScreen({ navigation }) {
             const token = await AsyncStorage.getItem('authToken');
             if (!token) return;
             
-            const API_URL = process.env.EXPO_PUBLIC_IP 
-                ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/users/address`
-                : 'http://192.168.0.107:5000/api/users/address';
+            const API_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/users/address`;
 
             const res = await fetch(API_URL, { headers: { 'Authorization': `Bearer ${token}` } });
             const data = await res.json();
@@ -161,9 +157,7 @@ export default function HomeScreen({ navigation }) {
         try {
             const token = await AsyncStorage.getItem('authToken');
             if (token) {
-                const API_URL = process.env.EXPO_PUBLIC_IP 
-                    ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/users/address`
-                    : 'http://192.168.0.107:5000/api/users/address';
+                const API_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/users/address`;
                 
                 const res = await fetch(API_URL, { headers: { 'Authorization': `Bearer ${token}` } });
                 const data = await res.json();
@@ -225,9 +219,7 @@ export default function HomeScreen({ navigation }) {
 
             const token = await AsyncStorage.getItem('authToken');
             if (token) {
-                const API_URL = process.env.EXPO_PUBLIC_IP 
-                    ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/users/location`
-                    : 'http://192.168.0.107:5000/api/users/location';
+                const API_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/users/location`;
 
                 await fetch(API_URL, {
                     method: 'PUT',

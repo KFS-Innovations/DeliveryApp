@@ -77,9 +77,9 @@ export default function ProfileScreen({ navigation }) {
             
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>My Profile</Text>
-                <TouchableOpacity style={styles.editButton}>
+                {/* <TouchableOpacity style={styles.editButton}>
                     <Feather name="edit-2" size={18} color={THEME.primary} />
-                </TouchableOpacity>
+                </TouchableOpacity> */}
             </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>

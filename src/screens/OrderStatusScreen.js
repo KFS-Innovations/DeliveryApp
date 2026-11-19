@@ -52,9 +52,7 @@ export default function OrderStatusScreen({ route, navigation }) {
     const fetchOrderStatus = async () => {
         try {
             const token = await AsyncStorage.getItem('authToken');
-            const API_URL = process.env.EXPO_PUBLIC_IP 
-                ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/order/${orderId}`
-                : `http://192.168.0.107:5000/api/order/${orderId}`; 
+            const API_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/order/${orderId}`; 
 
             const response = await fetch(API_URL, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -93,9 +91,7 @@ export default function OrderStatusScreen({ route, navigation }) {
     const executeCancelOrder = async () => {
         try {
             const token = await AsyncStorage.getItem('authToken');
-            const API_URL = process.env.EXPO_PUBLIC_IP 
-                ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/order/${orderId}/status`
-                : `http://192.168.0.107:5000/api/order/${orderId}/status`; 
+            const API_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/order/${orderId}/status`;
 
             const response = await fetch(API_URL, {
                 method: 'PUT',

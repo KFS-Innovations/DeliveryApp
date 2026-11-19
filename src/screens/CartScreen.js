@@ -1,11 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import { 
-    View, 
-    Text, 
-    FlatList, 
-    TouchableOpacity, 
-    StyleSheet, 
-    Image, 
+import {
+    View,
+    Text,
+    FlatList,
+    TouchableOpacity,
+    StyleSheet,
+    Image,
     ActivityIndicator,
     StatusBar,
     Alert
@@ -26,6 +26,8 @@ const COLORS = {
     border: '#F1F5F9',
     disabled: '#94A3B8'
 };
+
+const API_ROOT_URL = (process.env.EXPO_PUBLIC_API_URL || '').trim().replace(/\/+$/, '');
 
 // Helper to read store open status across common cart item shapes
 const isCartItemShopOpen = (item) => {
@@ -56,19 +58,16 @@ export default function CartScreen({ navigation }) {
             const activeLat = await AsyncStorage.getItem('activeLat');
             const activeLng = await AsyncStorage.getItem('activeLng');
 
-            const ip = process.env.EXPO_PUBLIC_IP?.trim();
-            const API_URL = ip
-                ? `http://${ip}:5000/api/cart?lat=${activeLat}&lng=${activeLng}`
-                : `http://192.168.0.107:5000/api/cart?lat=${activeLat}&lng=${activeLng}`;
+            const API_URL = `${API_ROOT_URL}/api/cart?lat=${activeLat}&lng=${activeLng}`;
 
             const response = await fetch(API_URL, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            
-            const textResponse = await response.text(); 
+
+            const textResponse = await response.text();
             const data = JSON.parse(textResponse);
             const latestItems = data.items || [];
-            
+
             setCartItems(latestItems);
             calculateTotal(latestItems);
             return latestItems;
@@ -102,9 +101,9 @@ export default function CartScreen({ navigation }) {
     };
 
     const updateQuantity = async (productId, newQuantity) => {
-        if (newQuantity < 1) return; 
+        if (newQuantity < 1) return;
 
-        const updatedItems = cartItems.map(item => 
+        const updatedItems = cartItems.map(item =>
             item.productId === productId ? { ...item, quantity: newQuantity } : item
         );
         setCartItems(updatedItems);
@@ -112,22 +111,19 @@ export default function CartScreen({ navigation }) {
 
         try {
             const token = await AsyncStorage.getItem('authToken');
-            const ip = process.env.EXPO_PUBLIC_IP?.trim();
-            const API_URL = ip 
-                ? `http://${ip}:5000/api/cart/update`
-                : 'http://192.168.0.107:5000/api/cart/update';
+            const API_URL = `${API_ROOT_URL}/api/cart/update`;
 
             await fetch(API_URL, {
                 method: 'PUT',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({ productId, quantity: newQuantity })
             });
         } catch (error) {
             console.error("Backend quantity update failed", error);
-            fetchCart(); 
+            fetchCart();
         }
     };
 
@@ -138,10 +134,7 @@ export default function CartScreen({ navigation }) {
 
         try {
             const token = await AsyncStorage.getItem('authToken');
-            const ip = process.env.EXPO_PUBLIC_IP?.trim();
-            const API_URL = ip 
-                ? `http://${ip}:5000/api/cart/remove/${productId}`
-                : `http://192.168.0.107:5000/api/cart/remove/${productId}`;
+            const API_URL = `${API_ROOT_URL}/api/cart/remove/${productId}`;
 
             await fetch(API_URL, {
                 method: 'DELETE',
@@ -149,7 +142,7 @@ export default function CartScreen({ navigation }) {
             });
         } catch (error) {
             console.error("Item removal failed", error);
-            fetchCart(); 
+            fetchCart();
         }
     };
 
@@ -179,7 +172,7 @@ export default function CartScreen({ navigation }) {
 
                     <Text style={styles.itemPrice}>₹{item.price ? item.price.toFixed(2) : '0.00'}</Text>
                     <View style={styles.quantityContainer}>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             onPress={() => updateQuantity(item.productId, item.quantity - 1)}
                             style={styles.qtyBtn}
                             disabled={!shopOpen}
@@ -187,7 +180,7 @@ export default function CartScreen({ navigation }) {
                             <Feather name="minus" size={16} color={COLORS.textDark} />
                         </TouchableOpacity>
                         <Text style={styles.qtyText}>{item.quantity}</Text>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             onPress={() => updateQuantity(item.productId, item.quantity + 1)}
                             style={styles.qtyBtn}
                             disabled={!shopOpen}
@@ -248,8 +241,8 @@ export default function CartScreen({ navigation }) {
                             <Text style={styles.totalLabel}>Total Amount</Text>
                             <Text style={styles.totalPrice}>₹{totalPrice.toFixed(2)}</Text>
                         </View>
-                        <TouchableOpacity 
-                            style={[styles.checkoutBtn, hasClosedShopItems && styles.checkoutBtnDisabled]} 
+                        <TouchableOpacity
+                            style={[styles.checkoutBtn, hasClosedShopItems && styles.checkoutBtnDisabled]}
                             onPress={handleProceedToCheckout}
                         >
                             <Text style={styles.checkoutText}>Proceed to Checkout</Text>
@@ -263,9 +256,9 @@ export default function CartScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-    safeArea: { 
-        flex: 1, 
-        backgroundColor: COLORS.background 
+    safeArea: {
+        flex: 1,
+        backgroundColor: COLORS.background
     },
     flexContainer: { flex: 1 },
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
@@ -273,12 +266,12 @@ const styles = StyleSheet.create({
     backButton: { padding: 8, marginLeft: -8 },
     headerTitle: { fontSize: 20, fontWeight: '700', color: COLORS.textDark },
     listContainer: { padding: 16, paddingBottom: 150 },
-    cartItem: { 
-        flexDirection: 'row', 
-        backgroundColor: COLORS.card, 
-        padding: 12, 
-        marginBottom: 16, 
-        borderRadius: 20, 
+    cartItem: {
+        flexDirection: 'row',
+        backgroundColor: COLORS.card,
+        padding: 12,
+        marginBottom: 16,
+        borderRadius: 20,
         alignItems: 'center',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
@@ -319,16 +312,16 @@ const styles = StyleSheet.create({
     emptyText: { fontSize: 15, color: COLORS.textMuted, textAlign: 'center', lineHeight: 24, marginBottom: 32 },
     browseBtn: { backgroundColor: COLORS.primary, paddingVertical: 16, paddingHorizontal: 32, borderRadius: 16, width: '100%', alignItems: 'center' },
     browseText: { color: '#FFF', fontWeight: '700', fontSize: 16 },
-    footer: { 
+    footer: {
         position: 'absolute',
-        bottom: 0, 
-        left: 0, 
-        right: 0, 
-        backgroundColor: COLORS.card, 
-        paddingHorizontal: 24, 
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: COLORS.card,
+        paddingHorizontal: 24,
         paddingTop: 20,
         paddingBottom: 32,
-        borderTopWidth: 1, 
+        borderTopWidth: 1,
         borderColor: COLORS.border,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: -8 },

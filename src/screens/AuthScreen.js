@@ -64,7 +64,7 @@ export default function AuthScreen({ navigation }) {
 
     setIsLoading(true);
     
-    const API_BASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:5000/api/auth`;
+    const API_BASE_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/auth`;
 
     try {
       const endpoint = isLogin ? `${API_BASE_URL}/login` : `${API_BASE_URL}/register`;

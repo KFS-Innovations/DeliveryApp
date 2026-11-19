@@ -87,7 +87,7 @@ export default function CheckoutScreen({ navigation }) {
             const activeLng = await AsyncStorage.getItem('activeLng');
 
             // --- NEW: Append coordinates to the URL ---
-            const CART_API_URL = `http://${process.env.EXPO_PUBLIC_IP}:5000/api/cart?lat=${activeLat}&lng=${activeLng}`;
+            const CART_API_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/cart?lat=${activeLat}&lng=${activeLng}`;
 
             const cartRes = await fetch(CART_API_URL, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -149,7 +149,7 @@ export default function CheckoutScreen({ navigation }) {
             const activeLat = await AsyncStorage.getItem('activeLat');
             const activeLng = await AsyncStorage.getItem('activeLng');
 
-            const res = await fetch(`http://${process.env.EXPO_PUBLIC_IP}:5000/api/users/address`, {
+            const res = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/users/address`, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -197,7 +197,7 @@ export default function CheckoutScreen({ navigation }) {
             const activeLat = await AsyncStorage.getItem('activeLat');
             const activeLng = await AsyncStorage.getItem('activeLng');
 
-            const API_URL = `http://${process.env.EXPO_PUBLIC_IP}:5000/api/payment/generate-link`;
+            const API_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/payment/generate-link`;
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 
@@ -248,7 +248,7 @@ export default function CheckoutScreen({ navigation }) {
                 });
             }
 
-            const VERIFY_URL = `http://${process.env.EXPO_PUBLIC_IP}:5000/api/payment/verify-link`;
+            const VERIFY_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/payment/verify-link`;
             const token = await AsyncStorage.getItem('authToken');
             
             const response = await fetch(VERIFY_URL, {

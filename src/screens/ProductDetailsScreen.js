@@ -50,9 +50,7 @@ export default function ProductDetailsScreen({ route, navigation }) {
 
   useEffect(() => {
     const fetchOtherProducts = async () => {
-      const API_URL = process.env.EXPO_PUBLIC_IP 
-        ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/products`
-        : 'http://192.168.0.107:5000/api/products';
+      const API_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/products`;
 
       try {
         const token = await AsyncStorage.getItem('authToken');
@@ -105,9 +103,7 @@ export default function ProductDetailsScreen({ route, navigation }) {
           );
       }
 
-      const API_URL = process.env.EXPO_PUBLIC_IP 
-        ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/cart/add`
-        : 'http://192.168.0.107:5000/api/cart/add';
+      const API_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/cart/add`;
 
       const response = await fetch(API_URL, {
         method: 'POST',

@@ -42,9 +42,7 @@ export default function OrdersScreen({ navigation }) {
         setLoading(true);
         try {
             const token = await AsyncStorage.getItem('authToken');
-            const API_URL = process.env.EXPO_PUBLIC_IP 
-                ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/order/history`
-                : `http://192.168.0.107:5000/api/order/history`;
+            const API_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/order/history`;
 
             const response = await fetch(API_URL, {
                 headers: { 'Authorization': `Bearer ${token}` }

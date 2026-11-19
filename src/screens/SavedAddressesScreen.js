@@ -103,7 +103,7 @@ export default function SavedAddressesScreen({ navigation }) {
     const fetchAddresses = async () => {
         try {
             const token = await AsyncStorage.getItem('authToken');
-            const res = await fetch(`http://${process.env.EXPO_PUBLIC_IP}:5000/api/users/address`, {
+            const res = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/users/address`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -145,7 +145,7 @@ export default function SavedAddressesScreen({ navigation }) {
                 onPress: async () => {
                     try {
                         const token = await AsyncStorage.getItem('authToken');
-                        const res = await fetch(`http://${process.env.EXPO_PUBLIC_IP}:5000/api/users/address/${addressId}`, {
+                        const res = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/users/address/${addressId}`, {
                             method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
                         });
                         const data = await res.json();
@@ -302,8 +302,8 @@ export default function SavedAddressesScreen({ navigation }) {
         
         const fullAddress = `${houseDetails}, ${areaDetails}${landmark ? `, Near ${landmark}` : ''}`;
         const url = editingAddressId 
-            ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/users/address/${editingAddressId}`
-            : `http://${process.env.EXPO_PUBLIC_IP}:5000/api/users/address`;
+            ? `${process.env.EXPO_PUBLIC_API_URL}/api/users/address/${editingAddressId}`
+            : `${process.env.EXPO_PUBLIC_API_URL}/api/users/address`;
         
         const method = editingAddressId ? 'PUT' : 'POST';
 
