@@ -12,7 +12,7 @@ const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
 const cartRoutes = require('./routes/cart');
 const legalRoutes = require('./routes/legal');
-const sellerAuthRoutes = require('./routes/SellerAuth');
+const sellerAuthRoutes = require('./routes/sellerauth');
 const sellerRoutes = require('./routes/seller');
 
 
