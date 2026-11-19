@@ -38,14 +38,9 @@ export default function ProfileScreen({ navigation }) {
                     style: "destructive",
                     onPress: async () => {
                         try {
-                            await AsyncStorage.removeItem('authToken');
                             if (logout) {
-                                logout();
+                                await logout();
                             }
-                            navigation.reset({
-                                index: 0,
-                                routes: [{ name: 'Auth' }],
-                            });
                         } catch (error) {
                             console.error("Logout Error:", error);
                             Alert.alert("Error", "Could not log out. Please try again.");

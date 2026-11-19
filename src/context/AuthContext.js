@@ -5,65 +5,78 @@ export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check if a user is already logged in when the app starts
+  // Restore session when the app opens
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const storedUser = await AsyncStorage.getItem('userData');
+        const [storedUser, storedToken] = await Promise.all([
+          AsyncStorage.getItem('userData'),
+          AsyncStorage.getItem('authToken'),
+        ]);
+
         if (storedUser) {
           setUser(JSON.parse(storedUser));
         }
+        if (storedToken) {
+          setToken(storedToken);
+        }
       } catch (error) {
-        console.error("Failed to load user data", error);
+        console.error('Failed to load user data:', error);
       } finally {
         setIsLoading(false);
       }
     };
+
     loadUser();
   }, []);
 
+  // Pass the full response object: login({ token: data.token, user: data.user })
   const login = async (backendResponse) => {
     try {
-      // 1. Save the user object to state and local storage
-      setUser(backendResponse.user);
-      await AsyncStorage.setItem('userData', JSON.stringify(backendResponse.user));
-      
-      // 2. Explicitly save the token and the userId
-      if (backendResponse.token) {
-        await AsyncStorage.setItem('authToken', backendResponse.token);
-        
-        // Safely check for both _id (MongoDB default) and id (common backend formatting)
-        const userId = backendResponse.user._id || backendResponse.user.id;
-        
+      const nextUser = backendResponse?.user || null;
+      const nextToken = backendResponse?.token || null;
+
+      if (!nextUser) {
+        console.error('Login called without user object in backendResponse');
+        return;
+      }
+
+      setUser(nextUser);
+      setToken(nextToken);
+
+      await AsyncStorage.setItem('userData', JSON.stringify(nextUser));
+
+      if (nextToken) {
+        await AsyncStorage.setItem('authToken', nextToken);
+
+        const userId = nextUser._id || nextUser.id;
         if (userId) {
-            // Convert to string just in case, as AsyncStorage requires string values
-            await AsyncStorage.setItem('userId', String(userId)); 
+          await AsyncStorage.setItem('userId', String(userId));
         } else {
-            console.error("⚠️ Login successful, but no ID found in backend response.");
+          console.warn('Login successful, but no _id or id found on user object.');
         }
       }
     } catch (error) {
-      console.error("Failed to save user data", error);
+      console.error('Failed to save user data:', error);
     }
   };
 
-  // Call this function to log the user out
+  // Call ONLY when the user explicitly logs out
   const logout = async () => {
     try {
       setUser(null);
-      // Remove BOTH keys when logging out
-      await AsyncStorage.removeItem('userData');
-      await AsyncStorage.removeItem('authToken');
-      await AsyncStorage.removeItem('userId'); 
+      setToken(null);
+      await AsyncStorage.multiRemove(['userData', 'authToken', 'userId']);
     } catch (error) {
-      console.error("Failed to clear user data", error);
+      console.error('Failed to clear user data:', error);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

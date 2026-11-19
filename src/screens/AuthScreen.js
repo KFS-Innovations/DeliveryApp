@@ -57,21 +57,26 @@ export default function AuthScreen({ navigation }) {
   };
 
   const handleSubmit = async () => {
-    if (!email || !password || (!isLogin && (!name || !phone))) {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim();
+    const cleanPhone = phone.trim();
+
+    if (!cleanEmail || !password || (!isLogin && (!cleanName || !cleanPhone))) {
       Alert.alert('Missing Fields', 'Please fill in all required fields.');
       return;
     }
 
     setIsLoading(true);
-    
-    const API_BASE_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/auth`;
+
+    const rootUrl = process.env.EXPO_PUBLIC_API_URL;
+    const API_BASE_URL = `${rootUrl.replace(/\/+$/, '')}/api/auth`;
 
     try {
       const endpoint = isLogin ? `${API_BASE_URL}/login` : `${API_BASE_URL}/register`;
-      
-      const payload = isLogin 
-        ? { email, password } 
-        : { name, email, phone, password };
+
+      const payload = isLogin
+        ? { email: cleanEmail, password }
+        : { name: cleanName, email: cleanEmail, phone: cleanPhone, password };
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -85,13 +90,15 @@ export default function AuthScreen({ navigation }) {
 
       if (response.ok) {
         await login(data);
-        navigation.replace('MainTabs');
       } else {
         Alert.alert('Authentication Failed', data.message || 'Something went wrong');
       }
     } catch (error) {
-      console.error("Auth Error:", error);
-      Alert.alert('Network Error', 'Could not connect to the server. Check your local IP.');
+      console.error('Auth Error:', error);
+      Alert.alert(
+        'Network Error',
+        'Could not connect to the server. Please check your connection or try again.'
+      );
     } finally {
       setIsLoading(false);
     }

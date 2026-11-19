@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useContext } from 'react';
+import { View, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { TouchableOpacity } from 'react-native';
 
 import AuthScreen from './src/screens/AuthScreen';
 import HomeScreen from './src/screens/HomeScreen';
@@ -12,43 +12,41 @@ import ProductDetailsScreen from './src/screens/ProductDetailsScreen';
 import CartScreen from './src/screens/CartScreen';
 import CheckoutScreen from './src/screens/CheckoutScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
-import { AuthProvider } from './src/context/AuthContext';
+import { AuthProvider, AuthContext } from './src/context/AuthContext';
 import OrderStatusScreen from './src/screens/OrderStatusScreen';
 import OrdersScreen from './src/screens/OrdersScreen';
 import SavedAddressesScreen from './src/screens/SavedAddressesScreen';
 import HelpCenterScreen from './src/screens/HelpCenterScreen';
-// --- NEW: Import PolicyScreen ---
-import PolicyScreen from './src/screens/PolicyScreen'; 
+import PolicyScreen from './src/screens/PolicyScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// --- NEW: Bottom Tab Navigator ---
 function MainTabs() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({ 
+      screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: '#10B981',
         tabBarInactiveTintColor: '#64748B',
-        
+
         tabBarButton: (props) => (
-          <TouchableOpacity {...props} activeOpacity={1} /> 
+          <TouchableOpacity {...props} activeOpacity={1} />
         ),
-        
-        tabBarStyle: { 
+
+        tabBarStyle: {
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: '#E2E8F0',
           height: 60,
           paddingBottom: 10,
-          paddingTop: 4
+          paddingTop: 4,
         },
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: '600',
         },
-        tabBarIcon: ({ color, size }) => {
+        tabBarIcon: ({ color }) => {
           if (route.name === 'Home') {
             return <Ionicons name="home" size={22} color={color} />;
           } else if (route.name === 'Orders') {
@@ -68,30 +66,52 @@ function MainTabs() {
   );
 }
 
-// --- UPDATED: Master Stack Navigator ---
+function RootNavigator() {
+  const { user, isLoading } = useContext(AuthContext);
+
+  if (isLoading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#FFFFFF',
+        }}
+      >
+        <ActivityIndicator size="large" color="#10B981" />
+      </View>
+    );
+  }
+
+  return (
+    <NavigationContainer>
+      <StatusBar style="auto" />
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {user ? (
+          <>
+            <Stack.Screen name="MainTabs" component={MainTabs} />
+            <Stack.Screen name="ProductDetails" component={ProductDetailsScreen} />
+            <Stack.Screen name="Cart" component={CartScreen} />
+            <Stack.Screen name="Checkout" component={CheckoutScreen} />
+            <Stack.Screen name="OrderStatus" component={OrderStatusScreen} />
+            <Stack.Screen name="Orders" component={OrdersScreen} />
+            <Stack.Screen name="SavedAddresses" component={SavedAddressesScreen} />
+            <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
+            <Stack.Screen name="Policy" component={PolicyScreen} />
+          </>
+        ) : (
+          <Stack.Screen name="Auth" component={AuthScreen} />
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+
 export default function App() {
   return (
     <AuthProvider>
-      <NavigationContainer>
-        <StatusBar style="auto" />
-        <Stack.Navigator 
-          initialRouteName="Auth"
-          screenOptions={{ headerShown: false }}
-        >
-          <Stack.Screen name="Auth" component={AuthScreen} />
-          <Stack.Screen name="MainTabs" component={MainTabs} />
-          
-          <Stack.Screen name="ProductDetails" component={ProductDetailsScreen} />
-          <Stack.Screen name="Cart" component={CartScreen} />
-          <Stack.Screen name="Checkout" component={CheckoutScreen} />
-          <Stack.Screen name="OrderStatus" component={OrderStatusScreen} />
-          <Stack.Screen name="Orders" component={OrdersScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="SavedAddresses" component={SavedAddressesScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
-          <Stack.Screen name="Policy" component={PolicyScreen} />
-          
-        </Stack.Navigator>
-      </NavigationContainer>
+      <RootNavigator />
     </AuthProvider>
   );
 }
