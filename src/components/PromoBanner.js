@@ -8,9 +8,6 @@ export default function PromoBanner() {
     <View>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Special Offers</Text>
-        <TouchableOpacity>
-          <Text style={styles.seeAllText}>See All</Text>
-        </TouchableOpacity>
       </View>
 
       <TouchableOpacity style={styles.bannerContainer}>

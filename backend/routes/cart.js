@@ -7,12 +7,12 @@ const calculateDistance = require('../utils/distance');
 
 const verifyToken = require('../middleware/verifyToken');
 
-// 1. Fetch Cart with Dynamic Delivery Fee
+// 1. Fetch Cart with Dynamic Delivery Fee & Store Open Status
 router.get('/', verifyToken, async (req, res) => {
   try {
     const cart = await Cart.findOne({ userId: req.user.id }).populate({
       path: 'items.productId',
-      populate: { path: 'sellerId', select: 'storeLocation' }
+      populate: { path: 'sellerId', select: 'shopName storeLocation isOpen' }
     });
     
     const user = await User.findById(req.user.id);
@@ -24,9 +24,9 @@ router.get('/', verifyToken, async (req, res) => {
     let maxDistance = 0;
     let subtotal = 0;
 
-    // --- THE FIX: GRAB LIVE LOCATION FROM FRONTEND URL ---
-    const activeLat = parseFloat(req.query.lat) || (user.location && user.location.latitude);
-    const activeLng = parseFloat(req.query.lng) || (user.location && user.location.longitude);
+    // --- GRAB LIVE LOCATION FROM FRONTEND URL ---
+    const activeLat = parseFloat(req.query.lat) || (user?.location && user.location.latitude);
+    const activeLng = parseFloat(req.query.lng) || (user?.location && user.location.longitude);
 
     const validItems = cart.items.filter(item => item.productId != null);
 
@@ -36,7 +36,6 @@ router.get('/', verifyToken, async (req, res) => {
       
       subtotal += numericPrice * item.quantity;
       
-      // USE activeLat AND activeLng HERE
       if (activeLat && activeLng && product.sellerId?.storeLocation?.latitude) {
         const distance = calculateDistance(
           activeLat,
@@ -55,7 +54,9 @@ router.get('/', verifyToken, async (req, res) => {
         title: product.name,
         price: numericPrice,
         imageUrl: product.image,
-        quantity: item.quantity
+        quantity: item.quantity,
+        shopName: product.sellerId?.shopName || 'Local Market',
+        isStoreOpen: product.sellerId?.isOpen !== false
       };
     });
 
@@ -77,7 +78,10 @@ router.post('/add', verifyToken, async (req, res) => {
   const { productId, quantity, userLat, userLng } = req.body;
 
   try {
-    const product = await Product.findById(productId).populate('sellerId', 'storeLocation');
+    const product = await Product.findById(productId).populate(
+      'sellerId',
+      'shopName storeLocation isOpen'
+    );
     
     if (!userLat || !userLng) {
       return res.status(400).json({ error: 'Please set your delivery location first.' });
@@ -85,6 +89,14 @@ router.post('/add', verifyToken, async (req, res) => {
 
     if (!product) {
       return res.status(404).json({ error: 'Product not found.' });
+    }
+
+    // Block adding items if the store is closed
+    if (product.sellerId?.isOpen === false) {
+      const shopName = product.sellerId?.shopName || 'This shop';
+      return res.status(400).json({
+        error: `${shopName} is currently closed and not accepting new orders.`
+      });
     }
 
     if (product.sellerId?.storeLocation?.latitude) {

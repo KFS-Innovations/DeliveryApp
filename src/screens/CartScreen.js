@@ -8,12 +8,12 @@ import {
     Image, 
     ActivityIndicator,
     StatusBar,
-    Platform
+    Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native'; // <-- 1. IMPORT THIS
+import { useFocusEffect } from '@react-navigation/native';
 
 const COLORS = {
     primary: '#10B981',
@@ -23,7 +23,20 @@ const COLORS = {
     card: '#FFFFFF',
     danger: '#EF4444',
     dangerLight: '#FEE2E2',
-    border: '#F1F5F9'
+    border: '#F1F5F9',
+    disabled: '#94A3B8'
+};
+
+// Helper to read store open status across common cart item shapes
+const isCartItemShopOpen = (item) => {
+    if (typeof item?.sellerId?.isOpen === 'boolean') return item.sellerId.isOpen;
+    if (typeof item?.isStoreOpen === 'boolean') return item.isStoreOpen;
+    if (typeof item?.shopOpen === 'boolean') return item.shopOpen;
+    return true;
+};
+
+const getCartItemShopName = (item) => {
+    return item?.sellerId?.shopName || item?.shopName || 'This shop';
 };
 
 export default function CartScreen({ navigation }) {
@@ -31,7 +44,6 @@ export default function CartScreen({ navigation }) {
     const [loading, setLoading] = useState(true);
     const [totalPrice, setTotalPrice] = useState(0);
 
-    // --- 2. REPLACED useEffect WITH useFocusEffect ---
     useFocusEffect(
         useCallback(() => {
             fetchCart();
@@ -41,14 +53,12 @@ export default function CartScreen({ navigation }) {
     const fetchCart = async () => {
         try {
             const token = await AsyncStorage.getItem('authToken');
-            
-            // --- NEW: Grab the live location from storage ---
             const activeLat = await AsyncStorage.getItem('activeLat');
             const activeLng = await AsyncStorage.getItem('activeLng');
-            
-            // --- NEW: Attach lat and lng to the URL ---
-            const API_URL = process.env.EXPO_PUBLIC_IP 
-                ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/cart?lat=${activeLat}&lng=${activeLng}`
+
+            const ip = process.env.EXPO_PUBLIC_IP?.trim();
+            const API_URL = ip
+                ? `http://${ip}:5000/api/cart?lat=${activeLat}&lng=${activeLng}`
                 : `http://192.168.0.107:5000/api/cart?lat=${activeLat}&lng=${activeLng}`;
 
             const response = await fetch(API_URL, {
@@ -57,14 +67,33 @@ export default function CartScreen({ navigation }) {
             
             const textResponse = await response.text(); 
             const data = JSON.parse(textResponse);
+            const latestItems = data.items || [];
             
-            setCartItems(data.items || []);
-            calculateTotal(data.items || []);
+            setCartItems(latestItems);
+            calculateTotal(latestItems);
+            return latestItems;
         } catch (error) {
             console.error("Failed to fetch cart:", error);
+            return cartItems;
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleProceedToCheckout = async () => {
+        const latestItems = await fetchCart();
+        const closedItems = latestItems.filter((item) => !isCartItemShopOpen(item));
+
+        if (closedItems.length > 0) {
+            const closedShopNames = [...new Set(closedItems.map(getCartItemShopName))].join(', ');
+            Alert.alert(
+                'Store Currently Closed',
+                `${closedShopNames} ${closedItems.length > 1 ? 'are' : 'is'} closed right now and cannot accept orders. Please remove the closed item(s) to proceed to checkout.`
+            );
+            return;
+        }
+
+        navigation.navigate('Checkout');
     };
 
     const calculateTotal = (items) => {
@@ -83,9 +112,9 @@ export default function CartScreen({ navigation }) {
 
         try {
             const token = await AsyncStorage.getItem('authToken');
-            
-            const API_URL = process.env.EXPO_PUBLIC_IP 
-                ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/cart/update`
+            const ip = process.env.EXPO_PUBLIC_IP?.trim();
+            const API_URL = ip 
+                ? `http://${ip}:5000/api/cart/update`
                 : 'http://192.168.0.107:5000/api/cart/update';
 
             await fetch(API_URL, {
@@ -109,9 +138,9 @@ export default function CartScreen({ navigation }) {
 
         try {
             const token = await AsyncStorage.getItem('authToken');
-            
-            const API_URL = process.env.EXPO_PUBLIC_IP 
-                ? `http://${process.env.EXPO_PUBLIC_IP}:5000/api/cart/remove/${productId}`
+            const ip = process.env.EXPO_PUBLIC_IP?.trim();
+            const API_URL = ip 
+                ? `http://${ip}:5000/api/cart/remove/${productId}`
                 : `http://192.168.0.107:5000/api/cart/remove/${productId}`;
 
             await fetch(API_URL, {
@@ -124,35 +153,52 @@ export default function CartScreen({ navigation }) {
         }
     };
 
-    const renderItem = ({ item }) => (
-        <View style={styles.cartItem}>
-            <Image source={{ uri: item.imageUrl }} style={styles.productImage} />
-            <View style={styles.itemDetails}>
-                <View style={styles.titleRow}>
-                    <Text style={styles.itemTitle} numberOfLines={2}>{item.title}</Text>
-                    <TouchableOpacity onPress={() => removeItem(item.productId)} style={styles.removeBtn}>
-                        <Feather name="trash-2" size={18} color={COLORS.danger} />
-                    </TouchableOpacity>
-                </View>
-                <Text style={styles.itemPrice}>₹{item.price ? item.price.toFixed(2) : '0.00'}</Text>
-                <View style={styles.quantityContainer}>
-                    <TouchableOpacity 
-                        onPress={() => updateQuantity(item.productId, item.quantity - 1)}
-                        style={styles.qtyBtn}
-                    >
-                        <Feather name="minus" size={16} color={COLORS.textDark} />
-                    </TouchableOpacity>
-                    <Text style={styles.qtyText}>{item.quantity}</Text>
-                    <TouchableOpacity 
-                        onPress={() => updateQuantity(item.productId, item.quantity + 1)}
-                        style={styles.qtyBtn}
-                    >
-                        <Feather name="plus" size={16} color={COLORS.textDark} />
-                    </TouchableOpacity>
+    const hasClosedShopItems = cartItems.some((item) => !isCartItemShopOpen(item));
+
+    const renderItem = ({ item }) => {
+        const shopOpen = isCartItemShopOpen(item);
+
+        return (
+            <View style={[styles.cartItem, !shopOpen && styles.closedCartItem]}>
+                <Image source={{ uri: item.imageUrl }} style={styles.productImage} />
+                <View style={styles.itemDetails}>
+                    <View style={styles.titleRow}>
+                        <Text style={styles.itemTitle} numberOfLines={2}>{item.title}</Text>
+                        <TouchableOpacity onPress={() => removeItem(item.productId)} style={styles.removeBtn}>
+                            <Feather name="trash-2" size={18} color={COLORS.danger} />
+                        </TouchableOpacity>
+                    </View>
+
+                    {!shopOpen && (
+                        <View style={styles.closedBadge}>
+                            <Text style={styles.closedBadgeText}>
+                                {getCartItemShopName(item)} is currently closed
+                            </Text>
+                        </View>
+                    )}
+
+                    <Text style={styles.itemPrice}>₹{item.price ? item.price.toFixed(2) : '0.00'}</Text>
+                    <View style={styles.quantityContainer}>
+                        <TouchableOpacity 
+                            onPress={() => updateQuantity(item.productId, item.quantity - 1)}
+                            style={styles.qtyBtn}
+                            disabled={!shopOpen}
+                        >
+                            <Feather name="minus" size={16} color={COLORS.textDark} />
+                        </TouchableOpacity>
+                        <Text style={styles.qtyText}>{item.quantity}</Text>
+                        <TouchableOpacity 
+                            onPress={() => updateQuantity(item.productId, item.quantity + 1)}
+                            style={styles.qtyBtn}
+                            disabled={!shopOpen}
+                        >
+                            <Feather name="plus" size={16} color={COLORS.textDark} />
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
-        </View>
-    );
+        );
+    };
 
     if (loading) {
         return (
@@ -193,11 +239,19 @@ export default function CartScreen({ navigation }) {
                         showsVerticalScrollIndicator={false}
                     />
                     <View style={styles.footer}>
+                        {hasClosedShopItems && (
+                            <Text style={styles.footerWarning}>
+                                One or more shops in your cart are closed. Remove closed items before checkout.
+                            </Text>
+                        )}
                         <View style={styles.summaryRow}>
                             <Text style={styles.totalLabel}>Total Amount</Text>
                             <Text style={styles.totalPrice}>₹{totalPrice.toFixed(2)}</Text>
                         </View>
-                        <TouchableOpacity style={styles.checkoutBtn} onPress={() => navigation.navigate('Checkout')}>
+                        <TouchableOpacity 
+                            style={[styles.checkoutBtn, hasClosedShopItems && styles.checkoutBtnDisabled]} 
+                            onPress={handleProceedToCheckout}
+                        >
                             <Text style={styles.checkoutText}>Proceed to Checkout</Text>
                             <Feather name="arrow-right" size={20} color="#FFF" style={{ marginLeft: 8 }} />
                         </TouchableOpacity>
@@ -218,7 +272,7 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
     backButton: { padding: 8, marginLeft: -8 },
     headerTitle: { fontSize: 20, fontWeight: '700', color: COLORS.textDark },
-    listContainer: { padding: 16, paddingBottom: 130 },
+    listContainer: { padding: 16, paddingBottom: 150 },
     cartItem: { 
         flexDirection: 'row', 
         backgroundColor: COLORS.card, 
@@ -231,6 +285,24 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.04,
         shadowRadius: 12,
         elevation: 2
+    },
+    closedCartItem: {
+        opacity: 0.7,
+        borderWidth: 1,
+        borderColor: '#FECACA'
+    },
+    closedBadge: {
+        alignSelf: 'flex-start',
+        backgroundColor: COLORS.dangerLight,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+        marginTop: 4
+    },
+    closedBadgeText: {
+        color: COLORS.danger,
+        fontSize: 11,
+        fontWeight: '700'
     },
     productImage: { width: 90, height: 90, borderRadius: 16, backgroundColor: COLORS.border },
     itemDetails: { flex: 1, marginLeft: 16 },
@@ -264,9 +336,20 @@ const styles = StyleSheet.create({
         shadowRadius: 16,
         elevation: 10
     },
+    footerWarning: {
+        color: COLORS.danger,
+        fontSize: 12,
+        fontWeight: '600',
+        marginBottom: 10
+    },
     summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
     totalLabel: { fontSize: 15, color: COLORS.textMuted, fontWeight: '600' },
     totalPrice: { fontSize: 24, fontWeight: '900', color: COLORS.textDark },
     checkoutBtn: { flexDirection: 'row', backgroundColor: COLORS.primary, paddingVertical: 18, borderRadius: 16, justifyContent: 'center', alignItems: 'center', shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
+    checkoutBtnDisabled: {
+        backgroundColor: COLORS.disabled,
+        shadowOpacity: 0,
+        elevation: 0
+    },
     checkoutText: { color: '#FFF', fontWeight: '800', fontSize: 16 }
 });

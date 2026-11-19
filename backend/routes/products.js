@@ -65,14 +65,15 @@ router.put('/:id', verifyToken, async (req, res) => {
 });
 
 // 3. GET ALL PRODUCTS (Public route for the Buyer App Home Screen)
+// 3. GET ALL PRODUCTS (Public route for the Buyer App Home Screen)
 router.get('/', async (req, res) => {
   try {
-    // Fetch products and populate the linked seller data
+    // Include isOpen in the populated seller fields
     const productsList = await Product.find().populate(
-      'sellerId', 
-      'shopName contactNumber storeLocation'
-    ); 
-    
+      'sellerId',
+      'shopName contactNumber storeLocation isOpen isActive'
+    );
+
     if (productsList.length === 0) {
       return res.json([
         {
@@ -90,6 +91,8 @@ router.get('/', async (req, res) => {
           sellerId: {
             shopName: 'Kerala Farms',
             contactNumber: '+919876543210',
+            isOpen: true,
+            isActive: true,
             storeLocation: {
               address: 'Marine Drive, Ernakulam, Kerala',
               latitude: 10.0150,
@@ -100,8 +103,12 @@ router.get('/', async (req, res) => {
       ]);
     }
 
-    res.json(productsList);
+    // Optional: filter out products whose seller has isOpen === false directly on the backend
+    const openShopProducts = productsList.filter(
+      (product) => product.sellerId && product.sellerId.isOpen !== false
+    );
 
+    res.json(openShopProducts);
   } catch (error) {
     console.error("Route Error:", error);
     res.status(500).json({ error: 'Failed to fetch products' });

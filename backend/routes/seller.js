@@ -208,5 +208,25 @@ router.delete('/delivery-partners/:id', verifyToken, async (req, res) => {
     }
 });
 
+router.patch('/status', verifyToken, async (req, res) => {
+  try {
+    const { sellerId, isOpen } = req.body;
+    const updatedSeller = await Seller.findByIdAndUpdate(
+      sellerId,
+      { isOpen: Boolean(isOpen) },
+      { new: true }
+    );
+
+    if (!updatedSeller) {
+      return res.status(404).json({ error: 'Seller not found' });
+    }
+
+    res.json({ success: true, isOpen: updatedSeller.isOpen });
+  } catch (err) {
+    console.error('Error updating store status:', err);
+    res.status(500).json({ error: 'Failed to update store status' });
+  }
+});
+
 
 module.exports = router;

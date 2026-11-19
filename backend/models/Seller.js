@@ -27,6 +27,10 @@ const sellerSchema = new mongoose.Schema({
     type: String, 
     default: 'seller' 
   },
+  isOpen: {
+    type: Boolean,
+    default: true
+  },
   isActive: {
     type: Boolean,
     default: true

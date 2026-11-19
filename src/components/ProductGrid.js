@@ -2,101 +2,128 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS } from '../components/theme';
-import { useNavigation } from '@react-navigation/native'; 
+import { useNavigation } from '@react-navigation/native';
 
 export default function ProductGrid({ products, isLoading }) {
-  const navigation = useNavigation(); 
+  const navigation = useNavigation();
+
+  if (isLoading) {
+    return (
+      <View style={styles.emptyContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary || '#10B981'} />
+      </View>
+    );
+  }
 
   const safeProducts = Array.isArray(products) ? products : [];
 
+  // Hide products from shops that are currently closed (isOpen === false).
+  // Default to open (true) if isOpen wasn't attached on a product's sellerId object.
+  const openShopProducts = safeProducts.filter(
+    (item) => item?.sellerId?.isOpen !== false
+  );
+
   // SORT LOGIC: In-stock items first, out-of-stock items pushed to the bottom
-  const sortedProducts = [...safeProducts].sort((a, b) => {
+  const sortedProducts = [...openShopProducts].sort((a, b) => {
     const aOutOfStock = a.inStock === false;
     const bOutOfStock = b.inStock === false;
-    
+
     if (aOutOfStock && !bOutOfStock) return 1;  // Push 'a' down
     if (!aOutOfStock && bOutOfStock) return -1; // Pull 'b' up
     return 0; // Keep original order otherwise
   });
 
-  return (
-  <View style={styles.recommendedGrid}>
-    {sortedProducts.map((item) => {
-      const isOutOfStock = item.inStock === false;
-
-      return (
-        <TouchableOpacity 
-          key={item._id} 
-          style={[styles.gridCard, isOutOfStock && { opacity: 0.9 }]}
-          onPress={() => navigation.navigate('ProductDetails', { product: item })}
-          activeOpacity={0.8}
-          disabled={isOutOfStock} // Disables navigation entirely
-        >
-        <View style={styles.imageContainer}>
-          {/* BLUR RADIUS APPLIED HERE */}
-          <Image 
-            source={{ uri: item.image }} 
-            style={styles.gridImage} 
-            blurRadius={isOutOfStock ? 8 : 0} 
-          />
-          
-          {/* HEAVILY FADED OVERLAY */}
-          {isOutOfStock && (
-              <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255, 255, 255, 0.75)' }} />
-          )}
-
-          {/* OUT OF STOCK BADGE WITH SHADOW */}
-          {isOutOfStock && (
-              <View style={{ 
-                position: 'absolute', 
-                top: '40%', 
-                alignSelf: 'center', 
-                backgroundColor: '#ea3030', 
-                paddingHorizontal: 10, 
-                paddingVertical: 6, 
-                borderRadius: 6,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.3,
-                shadowRadius: 3,
-                elevation: 5
-              }}>
-                  <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '900', letterSpacing: 1 }}>OUT OF STOCK</Text>
-              </View>
-          )}
-
-          <View style={styles.timeBadge}>
-            <Feather name="clock" size={10} color={COLORS.textDark} style={{ marginRight: 4 }} />
-            <Text style={styles.timeText}>{item.time || "15 min"}</Text>
-          </View>
+  if (sortedProducts.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <View style={styles.emptyIconBox}>
+          <Ionicons name="storefront-outline" size={36} color="#64748B" />
         </View>
+        <Text style={styles.emptyTitle}>No Shops Open Currently</Text>
+        <Text style={styles.emptySub}>
+          All nearby shops are currently closed. Please check back again soon for fresh items.
+        </Text>
+      </View>
+    );
+  }
 
-          <View style={styles.cardFooter}>
-            <Text style={[styles.itemName, isOutOfStock && { textDecorationLine: 'line-through', color: COLORS.textMuted }]} numberOfLines={1}>{item.name}</Text>
-            
-            <View style={styles.shopInfo}>
-              <Ionicons name="storefront-outline" size={12} color={COLORS.heartIcon} style={{ marginRight: 2 }} />
-              <Text style={styles.shopName} numberOfLines={1}>
-                {item.sellerId?.shopName || "Local Market"}
-              </Text>
+  return (
+    <View style={styles.recommendedGrid}>
+      {sortedProducts.map((item) => {
+        const isOutOfStock = item.inStock === false;
+
+        return (
+          <TouchableOpacity
+            key={item._id}
+            style={[styles.gridCard, isOutOfStock && { opacity: 0.9 }]}
+            onPress={() => navigation.navigate('ProductDetails', { product: item })}
+            activeOpacity={0.8}
+            disabled={isOutOfStock} // Disables navigation entirely
+          >
+            <View style={styles.imageContainer}>
+              {/* BLUR RADIUS APPLIED HERE */}
+              <Image
+                source={{ uri: item.image }}
+                style={styles.gridImage}
+                blurRadius={isOutOfStock ? 8 : 0}
+              />
+
+              {/* HEAVILY FADED OVERLAY */}
+              {isOutOfStock && (
+                <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255, 255, 255, 0.75)' }} />
+              )}
+
+              {/* OUT OF STOCK BADGE WITH SHADOW */}
+              {isOutOfStock && (
+                <View style={{
+                  position: 'absolute',
+                  top: '40%',
+                  alignSelf: 'center',
+                  backgroundColor: '#ea3030',
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  borderRadius: 6,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 3,
+                  elevation: 5
+                }}>
+                  <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '900', letterSpacing: 1 }}>OUT OF STOCK</Text>
+                </View>
+              )}
+
+              <View style={styles.timeBadge}>
+                <Feather name="clock" size={10} color={COLORS.textDark} style={{ marginRight: 4 }} />
+                <Text style={styles.timeText}>{item.time || "15 min"}</Text>
+              </View>
             </View>
 
-            <View style={styles.ratingPriceRow}>
-              <View style={styles.ratingInfo}>
-                <Text style={styles.ratingScore}>{item.rating || "4.5"}</Text>
-                <Ionicons name="star" size={12} color={COLORS.starGold} style={{ marginHorizontal: 2 }} />
+            <View style={styles.cardFooter}>
+              <Text style={[styles.itemName, isOutOfStock && { textDecorationLine: 'line-through', color: COLORS.textMuted }]} numberOfLines={1}>{item.name}</Text>
+
+              <View style={styles.shopInfo}>
+                <Ionicons name="storefront-outline" size={12} color={COLORS.heartIcon} style={{ marginRight: 2 }} />
+                <Text style={styles.shopName} numberOfLines={1}>
+                  {item.sellerId?.shopName || "Local Market"}
+                </Text>
               </View>
 
-              <View style={[styles.pricePill, isOutOfStock && { backgroundColor: '#94A3B8' }]}>
-                <Text style={styles.priceText}>{item.price || "₹0"}</Text>
+              <View style={styles.ratingPriceRow}>
+                <View style={styles.ratingInfo}>
+                  <Text style={styles.ratingScore}>{item.rating || "4.5"}</Text>
+                  <Ionicons name="star" size={12} color={COLORS.starGold} style={{ marginHorizontal: 2 }} />
+                </View>
+
+                <View style={[styles.pricePill, isOutOfStock && { backgroundColor: '#94A3B8' }]}>
+                  <Text style={styles.priceText}>{item.price || "₹0"}</Text>
+                </View>
               </View>
             </View>
-
-          </View>
-        </TouchableOpacity>
-      );
-    })}
-  </View>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
   );
 }
 
@@ -111,15 +138,15 @@ const styles = StyleSheet.create({
   timeText: { fontSize: 10, fontWeight: '700', color: COLORS.textDark },
   cardFooter: { padding: 12 },
   itemName: { fontSize: 14, fontWeight: '800', color: COLORS.textDark, marginBottom: 4 },
-  
+
   shopInfo: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   shopName: { fontSize: 11, fontWeight: '600', color: COLORS.textMuted, marginRight: 4, flex: 1 },
-  
+
   ratingPriceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  
+
   ratingInfo: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFBEB', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 8 },
   ratingScore: { fontSize: 12, fontWeight: '800', color: '#B45309' },
-  
+
   pricePill: { backgroundColor: COLORS.priceBg, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 14 },
   priceText: { color: '#FFF', fontSize: 11, fontWeight: '800' },
 
